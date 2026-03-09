@@ -1,67 +1,20 @@
-#Requires -RunAsAdministrator
-#Requires -Version 5.1
+# Uninstall-Driver.ps1
+# Script para desinstalar o driver AMD BC-250 do Windows
 
-<#
-.SYNOPSIS
-    Uninstalls the AMD BC-250 WDDM display driver from Windows.
+param(
+    [string]$DriverInfName = "amdbc250.inf"
+)
 
-.DESCRIPTION
-    Removes the AMD BC-250 driver service, driver files, and registry entries.
+Write-Host "Iniciando a desinstalação do driver AMD BC-250..."
 
-.EXAMPLE
-    .\Uninstall-Driver.ps1
-#>
+# Desinstalar o driver usando pnputil
+Write-Host "Deletando o pacote do driver: $DriverInfName"
+pnputil /delete-driver $DriverInfName /uninstall /force
 
-[CmdletBinding(SupportsShouldProcess)]
-param()
-
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
-$SERVICE_NAME = "amdbc250kmd"
-$KMD_FILENAME = "amdbc250kmd.sys"
-$UMD_FILENAME = "amdbc250umd64.dll"
-$UMD_FILENAME2 = "amdbc250umd.dll"
-
-Write-Host ""
-Write-Host "AMD BC-250 Driver Uninstaller" -ForegroundColor Cyan
-Write-Host "=============================" -ForegroundColor Cyan
-Write-Host ""
-
-if ($PSCmdlet.ShouldProcess("AMD BC-250 Driver", "Uninstall")) {
-
-    # Stop and remove service
-    Write-Host "[*] Stopping driver service..." -ForegroundColor Yellow
-    Stop-Service -Name $SERVICE_NAME -Force -ErrorAction SilentlyContinue
-    & sc.exe delete $SERVICE_NAME 2>&1 | Out-Null
-    Write-Host "[+] Service removed" -ForegroundColor Green
-
-    # Remove driver files
-    Write-Host "[*] Removing driver files..." -ForegroundColor Yellow
-    $filesToRemove = @(
-        "$env:SystemRoot\System32\drivers\$KMD_FILENAME",
-        "$env:SystemRoot\System32\$UMD_FILENAME",
-        "$env:SystemRoot\System32\$UMD_FILENAME2"
-    )
-
-    foreach ($file in $filesToRemove) {
-        if (Test-Path $file) {
-            Remove-Item $file -Force -ErrorAction SilentlyContinue
-            Write-Host "[+] Removed: $file" -ForegroundColor Green
-        }
-    }
-
-    # Remove from driver store
-    Write-Host "[*] Removing from driver store..." -ForegroundColor Yellow
-    $infFiles = & pnputil /enum-drivers 2>&1 | Select-String "amdbc250"
-    if ($infFiles) {
-        foreach ($inf in $infFiles) {
-            $infName = ($inf -split "\s+")[2]
-            & pnputil /delete-driver $infName /uninstall 2>&1 | Out-Null
-        }
-    }
-
-    Write-Host ""
-    Write-Host "[+] Uninstallation complete. Please reboot." -ForegroundColor Green
-    Write-Host ""
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Driver desinstalado com sucesso!"
+} else {
+    Write-Error "Falha ao desinstalar o driver. Código de erro: $LASTEXITCODE"
 }
+
+Write-Host "Desinstalação concluída."

@@ -4,5 +4,7 @@
 LIBRARY     amdbc250umd
 EXPORTS
     OpenAdapter         @1
-    OpenAdapter10       @2  NONAME
-    OpenAdapter10_2     @3  NONAME
+    OpenAdapter10       @2
+    OpenAdapter10_2     @3
+    OpenAdapter11       @4
+    OpenAdapter12       @5
