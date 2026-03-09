@@ -1,0 +1,8 @@
+; Module definition file for AMD BC-250 User-Mode Display Driver DLL
+; Exports the OpenAdapter entry point required by the D3D runtime
+
+LIBRARY     amdbc250umd
+EXPORTS
+    OpenAdapter         @1
+    OpenAdapter10       @2  NONAME
+    OpenAdapter10_2     @3  NONAME

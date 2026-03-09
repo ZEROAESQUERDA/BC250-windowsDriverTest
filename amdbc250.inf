@@ -1,0 +1,237 @@
+; ============================================================================
+; AMD BC-250 APU Display Driver
+; Windows Display Driver Model (WDDM) 2.0
+;
+; Supports: AMD BC-250 / Cyan Skillfish / Ariel APU (RDNA2 iGPU)
+; PCI Vendor: 0x1002 (Advanced Micro Devices, Inc.)
+; PCI Devices: 0x13FE, 0x143F, 0x13DB, 0x13F9, 0x13FA, 0x13FB, 0x13FC
+;
+; Compatible with: Windows 10 (1607+), Windows 11
+; Architecture: x64 (AMD64) only
+;
+; Driver Files:
+;   amdbc250kmd.sys  - Kernel-Mode Display Miniport Driver
+;   amdbc250umd.dll  - User-Mode Display Driver (D3D DDI)
+;   amdbc250umd64.dll - User-Mode Display Driver (64-bit)
+;
+; ============================================================================
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = Display
+ClassGUID   = {4D36E968-E325-11CE-BFC1-08002BE10318}
+Provider    = %ManufacturerName%
+DriverVer   = 03/09/2026,1.0.100.0
+CatalogFile = amdbc250.cat
+PnpLockdown = 1
+
+; ============================================================================
+; Manufacturer and Device Sections
+; ============================================================================
+
+[Manufacturer]
+%ManufacturerName% = AMD_BC250_Devices,NTamd64
+
+; AMD BC-250 device list (NTamd64 = 64-bit Windows only)
+[AMD_BC250_Devices.NTamd64]
+; Primary BC-250 variant (most common ASRock board)
+%AMD_BC250_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_13FE
+
+; Alternate BC-250 variant
+%AMD_BC250_ALT1_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_143F
+
+; Extended Cyan Skillfish family members
+%AMD_BC250_EXT1_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_13DB
+%AMD_BC250_EXT2_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_13F9
+%AMD_BC250_EXT3_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_13FA
+%AMD_BC250_EXT4_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_13FB
+%AMD_BC250_EXT5_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_13FC
+
+; ASRock-specific subsystem IDs
+%AMD_BC250_ASROCK_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_13FE&SUBSYS_13FE1849
+%AMD_BC250_ASROCK2_DESC% = AMD_BC250_Install, PCI\VEN_1002&DEV_143F&SUBSYS_143F1849
+
+; ============================================================================
+; Installation Section (NTamd64)
+; ============================================================================
+
+[AMD_BC250_Install.NTamd64]
+Include         = msdv.inf
+Needs           = MSDV.NT
+CopyFiles       = AMD_BC250_CopyFiles_Sys, AMD_BC250_CopyFiles_DLL
+AddReg          = AMD_BC250_AddReg
+DelReg          = AMD_BC250_DelReg
+
+[AMD_BC250_Install.NTamd64.HW]
+AddReg          = AMD_BC250_HW_AddReg
+
+[AMD_BC250_Install.NTamd64.Services]
+AddService      = amdbc250kmd, 0x00000002, AMD_BC250_Service_Install
+DelService      = amdbc250kmd, 0x00000004
+
+[AMD_BC250_Install.NTamd64.Interfaces]
+AddInterface    = {1CA05180-A699-450A-9A0C-DE4FBE3DDD89},, AMD_BC250_Interface_Install
+
+; ============================================================================
+; File Copy Sections
+; ============================================================================
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+amdbc250kmd.sys  = 1,,
+amdbc250umd.dll  = 1,,
+amdbc250umd64.dll = 1,,
+
+[DestinationDirs]
+AMD_BC250_CopyFiles_Sys = 12        ; %windir%\System32\drivers
+AMD_BC250_CopyFiles_DLL = 11        ; %windir%\System32
+
+[AMD_BC250_CopyFiles_Sys]
+amdbc250kmd.sys,,,0x00004000        ; COPYFLG_IN_USE_RENAME
+
+[AMD_BC250_CopyFiles_DLL]
+amdbc250umd.dll,,,0x00004000
+amdbc250umd64.dll,,,0x00004000
+
+; ============================================================================
+; Service Installation
+; ============================================================================
+
+[AMD_BC250_Service_Install]
+DisplayName     = %ServiceDisplayName%
+Description     = %ServiceDescription%
+ServiceType     = 1                 ; SERVICE_KERNEL_DRIVER
+StartType       = 3                 ; SERVICE_DEMAND_START
+ErrorControl    = 0                 ; SERVICE_ERROR_IGNORE
+ServiceBinary   = %12%\amdbc250kmd.sys
+LoadOrderGroup  = Video
+AddReg          = AMD_BC250_Service_AddReg
+
+[AMD_BC250_Service_AddReg]
+HKR,, Tag, 0x00010001, 1
+
+; ============================================================================
+; Registry Entries
+; ============================================================================
+
+[AMD_BC250_AddReg]
+; Driver identification
+HKR,, DriverDesc,           0,          %AMD_BC250_DESC%
+HKR,, ProviderName,         0,          %ManufacturerName%
+HKR,, DriverVersion,        0,          "1.0.100.0"
+HKR,, DriverDate,           0,          "03/09/2026"
+
+; User-mode driver DLL registration
+HKR,, UserModeDriverName,   0x00010000, "amdbc250umd.dll"
+HKR,, UserModeDriverNameWow, 0x00010000, "amdbc250umd.dll"
+
+; WDDM capabilities
+HKR,, WddmVersion,          0x00010001, 0x00020000  ; WDDM 2.0
+HKR,, IsDisplayDevice,      0x00010001, 1
+HKR,, IsVgaCompatible,      0x00010001, 0
+
+; GPU identification
+HKR,, VendorId,             0x00010001, 0x00001002
+HKR,, DeviceId,             0x00010001, 0x000013FE
+HKR,, ChipFamily,           0,          "Cyan Skillfish (RDNA2)"
+HKR,, Architecture,         0,          "RDNA2"
+HKR,, ComputeUnits,         0x00010001, 24
+HKR,, StreamProcessors,     0x00010001, 1536
+HKR,, MemoryType,           0,          "GDDR6"
+HKR,, MemoryBusWidth,       0x00010001, 256
+HKR,, TotalMemoryMB,        0x00010001, 16384
+HKR,, DefaultVramMB,        0x00010001, 512
+
+; Display capabilities
+HKR,, MaxResolutionH,       0x00010001, 7680
+HKR,, MaxResolutionV,       0x00010001, 4320
+HKR,, MaxRefreshRate,       0x00010001, 240
+HKR,, DisplayPortSupport,   0x00010001, 1
+HKR,, HDRSupport,           0x00010001, 1
+HKR,, FreeSync,             0x00010001, 1
+
+; D3D feature levels
+HKR,, D3DFeatureLevel,      0x00010001, 0x0000C000  ; D3D_FEATURE_LEVEL_12_0
+HKR,, D3D12Support,         0x00010001, 1
+HKR,, D3D11Support,         0x00010001, 1
+HKR,, VulkanSupport,        0x00010001, 1
+
+; Performance settings
+HKR,, PowerGatingEnabled,   0x00010001, 1
+HKR,, ClockGatingEnabled,   0x00010001, 1
+HKR,, BaseClock_MHz,        0x00010001, 1000
+HKR,, BoostClock_MHz,       0x00010001, 2000
+HKR,, MemoryClock_MHz,      0x00010001, 1750
+HKR,, TDP_Watts,            0x00010001, 220
+
+; Software settings
+HKR,, EnableUlps,           0x00010001, 1       ; Ultra Low Power State
+HKR,, PP_SclkDeepSleepDisable, 0x00010001, 0
+HKR,, PP_ThermalAutoThrottlingEnable, 0x00010001, 1
+
+; Shader cache
+HKR,, ShaderCache,          0x00010001, 1
+HKR,, ShaderCacheMaxSizeMB, 0x00010001, 2048
+
+; Anti-aliasing defaults
+HKR,, AntiAliasingMode,     0x00010001, 0       ; Application-controlled
+HKR,, AntiAliasingLevel,    0x00010001, 0
+
+; Anisotropic filtering
+HKR,, AnisotropicFilteringMode, 0x00010001, 0   ; Application-controlled
+HKR,, AnisotropicFilteringLevel, 0x00010001, 0
+
+; Texture filtering quality
+HKR,, TextureFilteringQuality, 0x00010001, 2    ; High quality
+
+; ============================================================================
+; Hardware-specific registry entries (under HKLM\SYSTEM\CurrentControlSet\Control\Class)
+; ============================================================================
+
+[AMD_BC250_HW_AddReg]
+HKR, "Interrupt Management\MessageSignaledInterruptProperties",
+    MSISupported, 0x00010001, 1
+HKR, "Interrupt Management\MessageSignaledInterruptProperties",
+    MessageNumberLimit, 0x00010001, 4
+
+; ============================================================================
+; Registry entries to delete (cleanup from previous installations)
+; ============================================================================
+
+[AMD_BC250_DelReg]
+HKR,, OldDriverSetting1
+HKR,, OldDriverSetting2
+
+; ============================================================================
+; Interface Installation (for D3D runtime enumeration)
+; ============================================================================
+
+[AMD_BC250_Interface_Install]
+AddReg = AMD_BC250_Interface_AddReg
+
+[AMD_BC250_Interface_AddReg]
+HKR,, "DriverVersion", 0, "1.0.100.0"
+
+; ============================================================================
+; Strings Section
+; ============================================================================
+
+[Strings]
+; Localizable strings (English)
+ManufacturerName        = "AMD BC-250 Driver Project"
+DiskName                = "AMD BC-250 Driver Disk"
+ServiceDisplayName      = "AMD BC-250 Kernel Mode Driver"
+ServiceDescription      = "AMD BC-250 APU (Cyan Skillfish / RDNA2) Display Miniport Driver"
+
+; Device descriptions
+AMD_BC250_DESC          = "AMD BC-250 APU (Cyan Skillfish) - RDNA2 GPU [13FE]"
+AMD_BC250_ALT1_DESC     = "AMD BC-250 APU (Cyan Skillfish) - RDNA2 GPU [143F]"
+AMD_BC250_EXT1_DESC     = "AMD Cyan Skillfish APU - RDNA2 GPU [13DB]"
+AMD_BC250_EXT2_DESC     = "AMD Cyan Skillfish APU - RDNA2 GPU [13F9]"
+AMD_BC250_EXT3_DESC     = "AMD Cyan Skillfish APU - RDNA2 GPU [13FA]"
+AMD_BC250_EXT4_DESC     = "AMD Cyan Skillfish APU - RDNA2 GPU [13FB]"
+AMD_BC250_EXT5_DESC     = "AMD Cyan Skillfish APU - RDNA2 GPU [13FC]"
+AMD_BC250_ASROCK_DESC   = "ASRock AMD BC-250 Mining Board GPU [13FE]"
+AMD_BC250_ASROCK2_DESC  = "ASRock AMD BC-250 Mining Board GPU [143F]"
