@@ -1,63 +1,60 @@
 # Roadmap do KMD BC-250
 
-## Marco 0 — Build e instalação segura
+## Onde estou agora
 
-O projeto precisa compilar no Windows 10 x64 com Visual Studio e WDK. Nesta etapa, o driver é instalado somente em modo de teste, com uma BC-250 secundária e captura de logs. O objetivo é validar o pacote `.sys`/`.inf`, não ativar aceleração.
+Eu considero o projeto um bring-up de KMD/UMD, não um driver de jogos. A árvore já tem a separação full-WDDM, o modelo UMA/aperture, rings, fences, firmware público, mailbox SMU e a fronteira UMD, mas ainda não há uma BC-250 real disponível para confirmar os offsets, o microcode, o IH/EOP ou o comportamento do TDR.
 
-## Marco 1 — PnP e identificação
+## Marco 0 — Build no Windows 10 x64
 
-Implementar o acesso seguro aos recursos fornecidos por `DxgkDdiStartDevice`/interfaces do display port, confirmar o ID PCI real e registrar a revisão. O driver deve recusar IDs desconhecidos e nunca assumir BAR, tamanho de framebuffer ou quantidade de SDMA.
+Compilar a solução com Visual Studio, WDK e MSBuild em Windows 10 x64. Instalar apenas em uma máquina de teste com assinatura apropriada, captura de logs e uma forma de recuperação. O script `tools/validate_project.py` cobre XML, arquivos críticos e configuração, mas não substitui o build do WDK.
 
-## Marco 2 — MMIO e IP blocks
+## Marco 1 — PnP, BARs e descoberta
 
-Mapear apenas os BARs informados pelo PnP. Reproduzir, de forma independente, a classificação Cyan Skillfish do `amdgpu`, as versões GC/SDMA e o caminho de firmware adequado. Cada leitura de registrador deve ter timeout/validação; nenhuma rotina de bring-up pode esperar indefinidamente por hardware.
+Confirmar os IDs PCI, a revisão e os recursos traduzidos por PnP. Manter a BAR5 do mailbox SMN separada da BAR candidata de registradores GC/SDMA. Registrar tamanho/endereço dos recursos e recusar acessos fora das regiões fornecidas pelo Windows.
 
-## Marco 3 — Memória UMA
+## Marco 2 — Firmware e estado D0
 
-Modelar os segmentos visíveis ao Windows e a GPU virtual address. O BC-250 não deve ser tratado como RX 5700 XT: a alocação, visibilidade CPU/GPU e paginação precisam refletir a memória compartilhada e os carveouts da placa real.
+Integrar o carregamento efetivo de CP/SDMA através da sequência suportada pelo PSP/boot firmware, ou demonstrar por registradores e logs que o firmware já está carregado. Sair de GFXOFF de forma observável, manter a placa em D0 estável e só então permitir programação de engine. D1/D2/D3, ULPS e power gating ficam fora deste marco.
 
-## Marco 4 — Fila GFX e sincronização
+## Marco 3 — Ring e fence mínimos
 
-Criar uma fila mínima, um ring/queue controlado, fences e uma operação copy/clear. A submissão deve ser serializada até que interrupts e DPCs estejam validados. O primeiro teste deve usar comandos pequenos e verificáveis, não workloads complexos.
+Executar primeiro um teste pequeno no KMD: NOP, `WRITE_DATA` GPU-side para uma fence, leitura CPU do buffer, interrupção EOP/IH e repetição. A fence só pode ser considerada concluída quando a GPU escrever o valor. O reset precisa invalidar o estado e impedir que o scheduler veja progresso falso.
 
-## Marco 5 — Reset/TDR e display
+## Marco 4 — GPUVM e memória UMA mínima
 
-Implementar detecção de hang, reset controlado, restauração de estado e callbacks de power. Em paralelo, implementar VidPn, EDID, connector e present apenas quando o caminho de memória for confiável.
+Começar com uma política simples de system-memory/aperture, um VMID e page tables suficientes para um buffer linear. Só anunciar uma faixa UMA-like local quando a reserva física e a visibilidade GPU forem descobertas. Residency, eviction, TLB invalidation, cache management e GPU virtual address precisam ser implementados antes de workloads maiores.
 
-## Marco 6 — UMD Vulkan
+## Marco 5 — Operações de buffer no KMD
 
-Conectar um UMD Vulkan derivado do RADV, com o BC-250 anunciado como `gfx1013`. O UMD deve usar exclusivamente a interface KMD definida por este projeto, sem depender de estruturas privadas do KMD Adrenalin.
+Implementar e testar uma operação pequena de copy/clear usando allocations, endereços e fences reais. `Render`, `Patch`, `BuildPagingBuffer` e `SubmitCommand` devem traduzir apenas comandos que o KMD consegue validar e executar. Operações ainda não implementadas devem falhar explicitamente, e não retornar sucesso vazio.
 
-## Marco 7 — DirectX
+## Marco 6 — MVP D3D11 limitado
 
-Escolher entre um UMD D3D12 próprio ou uma estratégia de tradução. Direct3D 11/12 não é consequência automática de ter uma fila GFX; requer implementação de recursos, heaps, shaders, state tracking, sincronização e apresentação conforme as DDIs WDDM.
+Depois do KMD, construir um UMD D3D11 pequeno e coerente para buffers lineares, upload/copy, um clear simples, resource views mínimos e sincronização. O objetivo de saída deste marco é um triângulo simples ou, antes dele, um clear verificável em uma BC-250 real. A tabela DDI precisa corresponder ao header WDK do Windows 10 alvo; casts entre D3D11 e D3D10 não substituem a ABI correta.
 
-## Critérios de parada
+## Marco 7 — DXGI e apresentação
 
-Qualquer bugcheck, timeout sem recuperação, acesso MMIO inválido, corrupção de memória ou reset que exija desligamento deve bloquear o avanço para a etapa seguinte. A compatibilidade final somente pode ser declarada depois de testes em hardware BC-250 real e em uma instalação Windows 10 x64 reproduzível.
+Implementar adapter enumeration, formatos realmente suportados, swapchain, Present, page flip, VSync, EDID, HPD e modeset somente depois que memória e fences estiverem estáveis. A árvore atual possui callbacks de display, mas isso não deve ser confundido com DisplayPort funcional.
 
-## Contrato WDDM confirmado para aceleração
+## Marco 8 — D3D12
 
-A documentação Microsoft descreve uma sequência que o BC-250 terá de cumprir: `DxgkDdiCreateDevice` fornece informações de DMA; o UMD cria contextos; recursos passam por `DxgkDdiCreateAllocation`; o UMD entrega render/present; o KMD valida e produz DMA buffers; `DxgkDdiBuildPagingBuffer` prepara movimentações; `DxgkDdiPatch` aplica endereços físicos; `DxgkDdiSubmitCommand` enfileira o buffer; e a interrupção lê a fence e chama `DxgkCbNotifyInterrupt`/`DxgkCbQueueDpc` [1].
+Deixar D3D12 para depois de GPUVM, command queues, fences, heaps, resource states, device removal e sincronização estarem maduros. O export `OpenAdapter12` sozinho não constitui suporte D3D12.
 
-Segmentos WDDM são a descrição do espaço de endereços da GPU para o VidMm. `DxgkDdiQueryAdapterInfo` é chamado duas vezes com `DXGKQAITYPE_QUERYSEGMENT` ou `DXGKQAITYPE_QUERYSEGMENT3`: primeiro para contar segmentos, depois para preencher `DXGK_SEGMENTDESCRIPTOR`/`DXGK_SEGMENTDESCRIPTOR3` [2]. A implementação atual do projeto ainda não fornece esses dados; portanto, não deve anunciar aceleração.
+## Marco 9 — Vulkan e power avançado
 
-Referências:
+Vulkan, VCN, múltiplos monitores, hotplug sofisticado, D3D12 completo, D1/D2/D3 e ULPS só entram depois do MVP D3D11. A possibilidade de estudar NIR e o backend AMDGPU/Mesa é interessante, mas ainda seria necessário construir a camada UMD Windows e validar a ISA/ABI específica da GPU.
+
+## Critérios para avançar
+
+Eu só avanço de marco depois de compilar, instalar e observar o comportamento em hardware real. Bugcheck, timeout sem recuperação, acesso MMIO inválido, fence que avança sem a GPU, corrupção de memória ou reset que exige desligamento bloqueiam o próximo marco.
+
+## Referências
 
 [1]: https://learn.microsoft.com/en-us/windows-hardware/drivers/display/windows-vista-and-later-display-driver-model-operation-flow "Microsoft Learn — WDDM operation flow"
-
 [2]: https://learn.microsoft.com/en-us/windows-hardware/drivers/display/initializing-use-of-memory-segments "Microsoft Learn — Initializing use of memory segments"
+[3]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd "amdgpu no kernel Linux"
+[4]: https://docs.mesa3d.org/ "Documentação do Mesa"
 
-## Detalhes da DDI de segmentos
+## Autor
 
-`DXGKARG_QUERYADAPTERINFO` contém `Type`, `pInputData`, `InputDataSize`, `pOutputData` e `OutputDataSize`. Para segmentos, o tipo é `DXGKQAITYPE_QUERYSEGMENT` ou `DXGKQAITYPE_QUERYSEGMENT3`, com entrada `DXGK_QUERYSEGMENTIN` e saída `DXGK_QUERYSEGMENTOUT3` [3].
-
-`DXGK_QUERYSEGMENTOUT3` exige `NbSegment`, ponteiro para `DXGK_SEGMENTDESCRIPTOR3`, `PagingBufferSegmentId`, `PagingBufferSize` e `PagingBufferPrivateDataSize`. Cada descritor contém flags, `BaseAddress`, `CpuTranslatedAddress`, `Size`, `CommitLimit` e campos de banking/preservação [4]. Para o BC-250, não se deve preencher `Size` com uma constante de RX 5700 XT; o tamanho de UMA e a visibilidade precisam vir da placa/firmware e dos recursos WDDM reais.
-
-Referências:
-
-[3]: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmddi/ns-d3dkmddi-_dxgkarg_queryadapterinfo "Microsoft Learn — DXGKARG_QUERYADAPTERINFO"
-
-[4]: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmddi/ns-d3dkmddi-_dxgk_querysegmentout3 "Microsoft Learn — DXGK_QUERYSEGMENTOUT3"
-
-[5]: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmddi/ns-d3dkmddi-_dxgk_segmentdescriptor3 "Microsoft Learn — DXGK_SEGMENTDESCRIPTOR3"
+**ZEROAESQUERDA**
