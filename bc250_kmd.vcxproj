@@ -43,7 +43,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
-      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=1;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=0;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(DDK_INC_PATH);$(SDK_INC_PATH);$(ProjectDir)src\kmd;$(ProjectDir)src\hw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling></ExceptionHandling>
       <CompileAs>Default</CompileAs>
@@ -61,7 +61,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
-      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;NDEBUG;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=1;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;NDEBUG;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=0;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(DDK_INC_PATH);$(SDK_INC_PATH);$(ProjectDir)src\kmd;$(ProjectDir)src\hw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling></ExceptionHandling>
       <CompileAs>Default</CompileAs>
