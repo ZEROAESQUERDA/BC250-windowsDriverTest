@@ -143,6 +143,7 @@ Bc250DdiAddDevice(
     }
 
     RtlZeroMemory(context, sizeof(*context));
+    Bc250PspInitializeState(&context->Psp);
     context->PhysicalDeviceObject = PhysicalDeviceObject;
     *DeviceContext = context;
 
@@ -165,6 +166,7 @@ Bc250DdiRemoveDevice(
     }
 
     Bc250FreeGfxResources(&context->Gfx);
+    Bc250PspReleaseState(&context->Psp);
     Bc250UnmapMmioBars(&context->Hw);
     ExFreePoolWithTag(context, BC250_POOL_TAG);
     return STATUS_SUCCESS;
@@ -239,12 +241,38 @@ Bc250DdiStartDevice(
         BC250_LOG1(DPFLTR_ERROR_LEVEL,
                    "Descoberta runtime Cyan Skillfish falhou: 0x%08X",
                    status);
+        Bc250PspReleaseState(&context->Psp);
         Bc250UnmapMmioBars(&context->Hw);
         return status;
     }
 
     /* Only the confirmed BAR5 path may access the SMN mailbox. */
     context->Hw.AllowSmnMailbox = TRUE;
+
+    /*
+     * The PSP GPCOM implementation is deliberately independent from the
+     * GFX/IH gates. With the default gate at zero this is a no-MMIO probe and
+     * returns STATUS_NOT_SUPPORTED. When hardware validation enables it, the
+     * first command is only ring creation; firmware/GFX readiness remains
+     * false until PSP responses are consumed by a future bring-up step.
+     */
+    status = Bc250PspCreateRing(&context->Hw, &context->Psp);
+    if (NT_SUCCESS(status)) {
+        BC250_PSP_COMMAND_RESULT pspResult;
+        NTSTATUS attestStatus = Bc250PspAttest(
+            &context->Hw,
+            &context->Psp,
+            &pspResult);
+        BC250_LOG2(DPFLTR_INFO_LEVEL,
+                   "PSP attestation status=0x%08X resposta=0x%08X",
+                   attestStatus,
+                   pspResult.ResponseStatus);
+    } else if (status != STATUS_NOT_SUPPORTED) {
+        BC250_LOG1(DPFLTR_WARNING_LEVEL,
+                   "PSP GPCOM ring ainda nao esta pronto: 0x%08X",
+                   status);
+    }
+
     status = Bc250SmuInitializeQueries(&context->Hw, &context->Smu);
     if (!NT_SUCCESS(status)) {
         BC250_LOG1(DPFLTR_WARNING_LEVEL,
@@ -259,6 +287,7 @@ Bc250DdiStartDevice(
         BC250_LOG1(DPFLTR_ERROR_LEVEL,
                    "Inicializacao do modelo UMA falhou: 0x%08X",
                    status);
+        Bc250PspReleaseState(&context->Psp);
         Bc250UnmapMmioBars(&context->Hw);
         return status;
     }
@@ -268,6 +297,7 @@ Bc250DdiStartDevice(
         BC250_LOG1(DPFLTR_ERROR_LEVEL,
                    "Inicializacao do estado GFX falhou: 0x%08X",
                    status);
+        Bc250PspReleaseState(&context->Psp);
         Bc250UnmapMmioBars(&context->Hw);
         return status;
     }
@@ -281,6 +311,7 @@ Bc250DdiStartDevice(
                    "Alocacao de rings/fences falhou: 0x%08X",
                    status);
         Bc250FreeGfxResources(&context->Gfx);
+        Bc250PspReleaseState(&context->Psp);
         Bc250UnmapMmioBars(&context->Hw);
         return status;
     }
@@ -291,6 +322,7 @@ Bc250DdiStartDevice(
                    "Preparacao de rings/fences falhou: 0x%08X",
                    status);
         Bc250FreeGfxResources(&context->Gfx);
+        Bc250PspReleaseState(&context->Psp);
         Bc250UnmapMmioBars(&context->Hw);
         return status;
     }
@@ -331,6 +363,7 @@ Bc250DdiStopDevice(
     }
 
     Bc250FreeGfxResources(&context->Gfx);
+    Bc250PspReleaseState(&context->Psp);
     Bc250UnmapMmioBars(&context->Hw);
     context->DeviceStarted = FALSE;
     context->Hw.IsStarted = FALSE;
@@ -348,6 +381,8 @@ Bc250DdiResetDevice(
     /* Callback executável em contexto não paginável. Ainda não toca no GFX. */
     if (context != NULL) {
         context->DeviceStarted = FALSE;
+        context->Hw.PspReady = FALSE;
+        context->Psp.SubmissionFaulted = TRUE;
         BC250_LOG0(DPFLTR_WARNING_LEVEL, "ResetDevice: reset real ainda não implementado");
     }
 }
