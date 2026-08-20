@@ -63,6 +63,12 @@ Bc250FirmwareValidateSet(
     );
 
 NTSTATUS
+Bc250FirmwareMarkLoaded(
+    _Inout_ BC250_FIRMWARE_STATE* FirmwareState,
+    _In_ BC250_FIRMWARE_KIND Kind
+    );
+
+NTSTATUS
 Bc250FirmwareCommitReady(
     _Inout_ BC250_HW_STATE* HwState,
     _In_ const BC250_FIRMWARE_STATE* FirmwareState
