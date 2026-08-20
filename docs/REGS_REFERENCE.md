@@ -2,7 +2,7 @@
 
 ## Estado da validação
 
-A tabela em `src/gfx/bc250_gfx_regs.h` é uma **referência de port** GC10/SDMA5. O macro `BC250_GFX_OFFSETS_VALIDATED` está em `1` no modo experimental e a rotina de programação MMIO pode escrever esses offsets durante o bring-up. Eles continuam sendo candidatos de família, não uma confirmação específica de cada revisão Cyan Skillfish2; o objetivo desta configuração é tentar a aceleração sem manter o gate desabilitado.
+A tabela em `src/gfx/bc250_gfx_regs.h` é uma **referência de port** GC10/SDMA5. Os offsets continuam sendo candidatos de família e `BC250_GFX_OFFSETS_VALIDATED` fica em `0` até existir confirmação específica da revisão Cyan Skillfish2. A rotina pode preparar memória e registrar informações, mas não deve escrever MMIO de engine só porque a tabela genérica existe.
 
 ## GC/GFX
 
@@ -14,6 +14,6 @@ A fonte pública é o arquivo [gc_10_1_0_offset.h](https://raw.githubusercontent
 
 Os candidatos de SDMA0/SDMA1 usam os grupos de registradores RLC0/RLC1 publicados no header `sdma5_4_2_2_offset.h`. Essa correspondência é uma aproximação de IP SDMA5 e ainda precisa de confirmação específica para o IP `5.0` declarado pela BC-250. A fonte pública é [sdma5_4_2_2_offset.h](https://raw.githubusercontent.com/torvalds/linux/master/drivers/gpu/drm/amd/include/asic_reg/sdma5/sdma5_4_2_2_offset.h).
 
-## Modo experimental ativado
+## Estado atual do bring-up
 
-A presença dos offsets agora habilita a sequência de bring-up: descobrir o BAR físico do SMN separadamente do BAR de registradores; consultar firmware/SMU quando disponível; alocar memória não paginável; programar base, RPTR e WPTR; e permitir `StartDevice`, `SubmitCommand` e `BuildPagingBuffer`. Nenhuma etapa adicional de bloqueio por validação foi mantida. Se a tabela genérica não corresponder à revisão física, o resultado esperado é falha de inicialização, TDR ou comportamento incorreto, motivo pelo qual a configuração deve ser testada primeiro em uma instalação de laboratório.
+A presença dos offsets permite manter a tabela pronta para comparação e preparar rings/fences em memória, mas não habilita a escrita MMIO. `BC250_GFX_OFFSETS_VALIDATED=0` e `BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0` em Debug e Release; o ISR não toca os offsets zero de status/ack. O firmware também precisa estar efetivamente carregado antes de `Bc250ProgramGfxRings` poder operar. Se a tabela genérica não corresponder à revisão física, o driver deve permanecer em estado não pronto em vez de arriscar TDR ou corrupção.
