@@ -64,3 +64,25 @@ Depois desse marco, será possível decidir com evidência se vale conectar um U
 [4]: https://github.com/Keshas-dev/AMD-BC-250-Windows-Driver "Keshas-dev — public BC-250 Windows driver research"
 
 [5]: https://github.com/Keshas-dev/AMD-BC-250-Windows-Driver/tree/main/wddm-ps5 "Keshas-dev — wddm-ps5 reference tree"
+
+## Atualização após a segunda auditoria
+
+Eu revisei esta matriz depois de uma nova análise externa. A conclusão mais útil foi manter o escopo pequeno: antes de tentar D3D11, preciso provar firmware/CP, NOP, `WRITE_DATA` GPU-side para fence, EOP/IH, reset e uma operação linear de buffer/clear em uma BC-250 real.
+
+A árvore atual não anuncia uma VRAM fixa de 512 MB nem converte automaticamente os 16 GB da placa em VRAM local. Ela inicia com perfil UMA/aperture conservador e só cria uma faixa local/UMA quando existe uma faixa GPU-visible descoberta. Isso é mais correto, mas ainda não resolve GPUVM, page tables, VMID, residency, eviction ou coerência de cache.
+
+O display também deve ser lido como estrutura de callbacks, não como suporte DisplayPort pronto. Ainda faltam EDID, HPD, link training, modeset, page flip, VSync e Present. Da mesma forma, D0/D1/D2/D3 e ULPS não devem ser descritos como power management operacional sem logs reais do SMU.
+
+| Capacidade | Estado atual depois da revisão | Próximo marco verificável |
+|---|---|---|
+| GFX ring | Pacote `INDIRECT_BUFFER` e `WRITE_DATA` candidato; firmware e offsets não validados | NOP + fence escrita pela GPU + EOP/IH |
+| Memória UMA | Aperture conservador, sem VRAM inventada | GPUVM mínimo para buffer linear |
+| D3D9 | Fronteira UMD, sem device completo | Clear/copy e sincronização no KMD |
+| D3D10/D3D11 | OpenAdapter mínimo; criação incompleta retorna `E_NOTIMPL` | UMD D3D11 pequeno para buffer/clear/triangle |
+| D3D12 | Export presente, suporte de runtime não implementado | Só depois de GPUVM, heaps e command lists |
+| Display | Callbacks estruturais | EDID/HPD/modeset/present reais |
+| Power | Consultas SMU e estado de hardware | D0 estável; D1/D2/D3/ULPS depois |
+
+A recomendação de estudar NIR e o backend AMDGPU/Mesa continua válida como pesquisa de shader compiler, mas ainda não substitui a implementação UMD Windows, o contrato KMD, a geração de PM4 e a validação da ISA na BC-250.
+
+**Autor:** ZEROAESQUERDA
