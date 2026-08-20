@@ -374,10 +374,18 @@ Bc250DdiSetPowerState(
     )
 {
     UNREFERENCED_PARAMETER(HardwareUid);
-    UNREFERENCED_PARAMETER(DevicePowerState);
     UNREFERENCED_PARAMETER(ActionType);
     PAGED_CODE();
-    return DeviceContext != NULL ? STATUS_SUCCESS : STATUS_INVALID_PARAMETER;
+
+    if (DeviceContext == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (DevicePowerState != PowerDeviceD0) {
+        /* D1/D2/D3 require a validated SMU/GFXOFF sequence that is not
+         * implemented yet. Never claim that a transition succeeded. */
+        return STATUS_NOT_SUPPORTED;
+    }
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS
