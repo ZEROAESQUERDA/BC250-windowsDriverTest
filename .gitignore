@@ -1,0 +1,23 @@
+# Visual Studio / MSBuild
+.vs/
+*.user
+*.suo
+*.ncb
+*.VC.db
+build/
+out/
+Debug/
+Release/
+
+# Driver package artifacts
+*.sys
+*.cat
+*.cer
+*.pdb
+*.obj
+*.res
+*.tlog
+
+# Local hardware captures
+captures/
+logs/

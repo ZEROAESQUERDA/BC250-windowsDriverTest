@@ -1,0 +1,420 @@
+docs/van_gogh/mmhub_v2_3.c-29-#include "mmhub/mmhub_2_3_0_default.h"
+docs/van_gogh/mmhub_v2_3.c-30-#include "navi10_enum.h"
+docs/van_gogh/mmhub_v2_3.c-31-
+docs/van_gogh/mmhub_v2_3.c-32-#include "soc15_common.h"
+docs/van_gogh/mmhub_v2_3.c-33-
+docs/van_gogh/mmhub_v2_3.c:34:static const char *mmhub_client_ids_vangogh[][2] = {
+docs/van_gogh/mmhub_v2_3.c-35-	[0][0] = "MP0",
+docs/van_gogh/mmhub_v2_3.c-36-	[1][0] = "MP1",
+docs/van_gogh/mmhub_v2_3.c-37-	[2][0] = "DCEDMC",
+docs/van_gogh/mmhub_v2_3.c-38-	[3][0] = "DCEVGA",
+docs/van_gogh/mmhub_v2_3.c-39-	[13][0] = "UTCL2",
+--
+docs/van_gogh/mmhub_v2_3.c-477-		MMVM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
+docs/van_gogh/mmhub_v2_3.c-478-
+docs/van_gogh/mmhub_v2_3.c-479-	hub->vmhub_funcs = &mmhub_v2_3_vmhub_funcs;
+docs/van_gogh/mmhub_v2_3.c-480-
+docs/van_gogh/mmhub_v2_3.c-481-	amdgpu_mmhub_init_client_info(&adev->mmhub,
+docs/van_gogh/mmhub_v2_3.c:482:				     mmhub_client_ids_vangogh,
+docs/van_gogh/mmhub_v2_3.c:483:				     ARRAY_SIZE(mmhub_client_ids_vangogh));
+docs/van_gogh/mmhub_v2_3.c-484-}
+docs/van_gogh/mmhub_v2_3.c-485-
+docs/van_gogh/mmhub_v2_3.c-486-static void
+docs/van_gogh/mmhub_v2_3.c-487-mmhub_v2_3_update_medium_grain_clock_gating(struct amdgpu_device *adev,
+docs/van_gogh/mmhub_v2_3.c-488-					    bool enable)
+--
+docs/van_gogh/vangogh_ppt.c-24-#define SWSMU_CODE_LAYER_L2
+docs/van_gogh/vangogh_ppt.c-25-
+docs/van_gogh/vangogh_ppt.c-26-#include "amdgpu.h"
+docs/van_gogh/vangogh_ppt.c-27-#include "amdgpu_smu.h"
+docs/van_gogh/vangogh_ppt.c-28-#include "smu_v11_0.h"
+docs/van_gogh/vangogh_ppt.c:29:#include "smu11_driver_if_vangogh.h"
+docs/van_gogh/vangogh_ppt.c:30:#include "vangogh_ppt.h"
+docs/van_gogh/vangogh_ppt.c-31-#include "smu_v11_5_ppsmc.h"
+docs/van_gogh/vangogh_ppt.c-32-#include "smu_v11_5_pmfw.h"
+docs/van_gogh/vangogh_ppt.c-33-#include "smu_cmn.h"
+docs/van_gogh/vangogh_ppt.c-34-#include "soc15_common.h"
+docs/van_gogh/vangogh_ppt.c-35-#include "asic_reg/gc/gc_10_3_0_offset.h"
+--
+docs/van_gogh/vangogh_ppt.c-44-#undef pr_err
+docs/van_gogh/vangogh_ppt.c-45-#undef pr_warn
+docs/van_gogh/vangogh_ppt.c-46-#undef pr_info
+docs/van_gogh/vangogh_ppt.c-47-#undef pr_debug
+docs/van_gogh/vangogh_ppt.c-48-
+docs/van_gogh/vangogh_ppt.c:49:// Registers related to GFXOFF
+docs/van_gogh/vangogh_ppt.c-50-// addressBlock: smuio_smuio_SmuSmuioDec
+docs/van_gogh/vangogh_ppt.c-51-// base address: 0x5a000
+docs/van_gogh/vangogh_ppt.c-52-#define mmSMUIO_GFX_MISC_CNTL			0x00c5
+docs/van_gogh/vangogh_ppt.c-53-#define mmSMUIO_GFX_MISC_CNTL_BASE_IDX		0
+docs/van_gogh/vangogh_ppt.c-54-
+docs/van_gogh/vangogh_ppt.c-55-//SMUIO_GFX_MISC_CNTL
+docs/van_gogh/vangogh_ppt.c-56-#define SMUIO_GFX_MISC_CNTL__SMU_GFX_cold_vs_gfxoff__SHIFT	0x0
+docs/van_gogh/vangogh_ppt.c:57:#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT		0x1
+docs/van_gogh/vangogh_ppt.c-58-#define SMUIO_GFX_MISC_CNTL__SMU_GFX_cold_vs_gfxoff_MASK	0x00000001L
+docs/van_gogh/vangogh_ppt.c:59:#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK		0x00000006L
+docs/van_gogh/vangogh_ppt.c-60-
+docs/van_gogh/vangogh_ppt.c:61:static const struct smu_feature_bits vangogh_dpm_features = {
+docs/van_gogh/vangogh_ppt.c-62-	.bits = {
+docs/van_gogh/vangogh_ppt.c-63-		SMU_FEATURE_BIT_INIT(FEATURE_CCLK_DPM_BIT),
+docs/van_gogh/vangogh_ppt.c-64-		SMU_FEATURE_BIT_INIT(FEATURE_VCN_DPM_BIT),
+docs/van_gogh/vangogh_ppt.c-65-		SMU_FEATURE_BIT_INIT(FEATURE_FCLK_DPM_BIT),
+docs/van_gogh/vangogh_ppt.c-66-		SMU_FEATURE_BIT_INIT(FEATURE_SOCCLK_DPM_BIT),
+--
+docs/van_gogh/vangogh_ppt.c-71-		SMU_FEATURE_BIT_INIT(FEATURE_GFX_DPM_BIT)
+docs/van_gogh/vangogh_ppt.c-72-	}
+docs/van_gogh/vangogh_ppt.c-73-};
+docs/van_gogh/vangogh_ppt.c-74-
+docs/van_gogh/vangogh_ppt.c-75-/*
+docs/van_gogh/vangogh_ppt.c:76: * SMU support new GFXOFF residency log interface since version 4.63.62.00,
+docs/van_gogh/vangogh_ppt.c:77: * use this to get live readings of GFXOFF residency
+docs/van_gogh/vangogh_ppt.c-78- */
+docs/van_gogh/vangogh_ppt.c-79-#define SUPPORT_LIVE_RESIDENCY_MSG_VERSION 0x043f3e00
+docs/van_gogh/vangogh_ppt.c-80-
+docs/van_gogh/vangogh_ppt.c:81:static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
+docs/van_gogh/vangogh_ppt.c-82-	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			0),
+docs/van_gogh/vangogh_ppt.c-83-	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,		0),
+docs/van_gogh/vangogh_ppt.c-84-	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,	0),
+docs/van_gogh/vangogh_ppt.c-85-	MSG_MAP(EnableGfxOff,                   PPSMC_MSG_EnableGfxOff,			0),
+docs/van_gogh/vangogh_ppt.c-86-	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_AllowGfxOff,          0),
+--
+docs/van_gogh/vangogh_ppt.c-151-	MSG_MAP(StartGfxOffResidencyLogging,  PPSMC_MSG_StartGfxOffResidencyLogging,	0),
+docs/van_gogh/vangogh_ppt.c-152-	MSG_MAP(GfxOffResidencyLogReadSample, PPSMC_MSG_GfxOffResidencyLogReadSample,	0),
+docs/van_gogh/vangogh_ppt.c-153-	MSG_MAP(StopGfxOffResidencyLogging,   PPSMC_MSG_StopGfxOffResidencyLogging,		0),
+docs/van_gogh/vangogh_ppt.c-154-};
+docs/van_gogh/vangogh_ppt.c-155-
+docs/van_gogh/vangogh_ppt.c:156:static struct cmn2asic_mapping vangogh_feature_mask_map[SMU_FEATURE_COUNT] = {
+docs/van_gogh/vangogh_ppt.c-157-	FEA_MAP(PPT),
+docs/van_gogh/vangogh_ppt.c-158-	FEA_MAP(TDC),
+docs/van_gogh/vangogh_ppt.c-159-	FEA_MAP(THERMAL),
+docs/van_gogh/vangogh_ppt.c-160-	FEA_MAP(DS_GFXCLK),
+docs/van_gogh/vangogh_ppt.c-161-	FEA_MAP(DS_SOCCLK),
+--
+docs/van_gogh/vangogh_ppt.c-198-	FEA_MAP_REVERSE(SOCCLK),
+docs/van_gogh/vangogh_ppt.c-199-	FEA_MAP_REVERSE(FCLK),
+docs/van_gogh/vangogh_ppt.c-200-	FEA_MAP_HALF_REVERSE(GFX),
+docs/van_gogh/vangogh_ppt.c-201-};
+docs/van_gogh/vangogh_ppt.c-202-
+docs/van_gogh/vangogh_ppt.c:203:static struct cmn2asic_mapping vangogh_table_map[SMU_TABLE_COUNT] = {
+docs/van_gogh/vangogh_ppt.c-204-	TAB_MAP_VALID(WATERMARKS),
+docs/van_gogh/vangogh_ppt.c-205-	TAB_MAP_VALID(SMU_METRICS),
+docs/van_gogh/vangogh_ppt.c-206-	TAB_MAP_VALID(CUSTOM_DPM),
+docs/van_gogh/vangogh_ppt.c-207-	TAB_MAP_VALID(DPMCLOCKS),
+docs/van_gogh/vangogh_ppt.c-208-};
+docs/van_gogh/vangogh_ppt.c-209-
+docs/van_gogh/vangogh_ppt.c:210:static struct cmn2asic_mapping vangogh_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
+docs/van_gogh/vangogh_ppt.c-211-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
+docs/van_gogh/vangogh_ppt.c-212-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
+docs/van_gogh/vangogh_ppt.c-213-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
+docs/van_gogh/vangogh_ppt.c-214-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
+docs/van_gogh/vangogh_ppt.c-215-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+docs/van_gogh/vangogh_ppt.c-216-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CAPPED,		WORKLOAD_PPLIB_CAPPED_BIT),
+docs/van_gogh/vangogh_ppt.c-217-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_UNCAPPED,		WORKLOAD_PPLIB_UNCAPPED_BIT),
+docs/van_gogh/vangogh_ppt.c-218-};
+docs/van_gogh/vangogh_ppt.c-219-
+docs/van_gogh/vangogh_ppt.c:220:static const uint8_t vangogh_throttler_map[] = {
+docs/van_gogh/vangogh_ppt.c-221-	[THROTTLER_STATUS_BIT_SPL]	= (SMU_THROTTLER_SPL_BIT),
+docs/van_gogh/vangogh_ppt.c-222-	[THROTTLER_STATUS_BIT_FPPT]	= (SMU_THROTTLER_FPPT_BIT),
+docs/van_gogh/vangogh_ppt.c-223-	[THROTTLER_STATUS_BIT_SPPT]	= (SMU_THROTTLER_SPPT_BIT),
+docs/van_gogh/vangogh_ppt.c-224-	[THROTTLER_STATUS_BIT_SPPT_APU]	= (SMU_THROTTLER_SPPT_APU_BIT),
+docs/van_gogh/vangogh_ppt.c-225-	[THROTTLER_STATUS_BIT_THM_CORE]	= (SMU_THROTTLER_TEMP_CORE_BIT),
+--
+docs/van_gogh/vangogh_ppt.c-229-	[THROTTLER_STATUS_BIT_TDC_SOC]	= (SMU_THROTTLER_TDC_SOC_BIT),
+docs/van_gogh/vangogh_ppt.c-230-	[THROTTLER_STATUS_BIT_TDC_GFX]	= (SMU_THROTTLER_TDC_GFX_BIT),
+docs/van_gogh/vangogh_ppt.c-231-	[THROTTLER_STATUS_BIT_TDC_CVIP]	= (SMU_THROTTLER_TDC_CVIP_BIT),
+docs/van_gogh/vangogh_ppt.c-232-};
+docs/van_gogh/vangogh_ppt.c-233-
+docs/van_gogh/vangogh_ppt.c:234:static int vangogh_tables_init(struct smu_context *smu)
+docs/van_gogh/vangogh_ppt.c-235-{
+docs/van_gogh/vangogh_ppt.c-236-	struct smu_table_context *smu_table = &smu->smu_table;
+docs/van_gogh/vangogh_ppt.c-237-	struct smu_table *tables = smu_table->tables;
+docs/van_gogh/vangogh_ppt.c-238-	int ret;
+docs/van_gogh/vangogh_ppt.c-239-
+--
+docs/van_gogh/vangogh_ppt.c-279-	kfree(smu_table->metrics_table);
+docs/van_gogh/vangogh_ppt.c-280-err0_out:
+docs/van_gogh/vangogh_ppt.c-281-	return -ENOMEM;
+docs/van_gogh/vangogh_ppt.c-282-}
+docs/van_gogh/vangogh_ppt.c-283-
+docs/van_gogh/vangogh_ppt.c:284:static int vangogh_get_legacy_smu_metrics_data(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-285-				       MetricsMember_t member,
+docs/van_gogh/vangogh_ppt.c-286-				       uint32_t *value)
+docs/van_gogh/vangogh_ppt.c-287-{
+docs/van_gogh/vangogh_ppt.c-288-	struct smu_table_context *smu_table = &smu->smu_table;
+docs/van_gogh/vangogh_ppt.c-289-	SmuMetrics_legacy_t *metrics = (SmuMetrics_legacy_t *)smu_table->metrics_table;
+--
+docs/van_gogh/vangogh_ppt.c-347-	}
+docs/van_gogh/vangogh_ppt.c-348-
+docs/van_gogh/vangogh_ppt.c-349-	return ret;
+docs/van_gogh/vangogh_ppt.c-350-}
+docs/van_gogh/vangogh_ppt.c-351-
+docs/van_gogh/vangogh_ppt.c:352:static int vangogh_get_smu_metrics_data(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-353-				       MetricsMember_t member,
+docs/van_gogh/vangogh_ppt.c-354-				       uint32_t *value)
+docs/van_gogh/vangogh_ppt.c-355-{
+docs/van_gogh/vangogh_ppt.c-356-	struct smu_table_context *smu_table = &smu->smu_table;
+docs/van_gogh/vangogh_ppt.c-357-	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
+--
+docs/van_gogh/vangogh_ppt.c-418-	}
+docs/van_gogh/vangogh_ppt.c-419-
+docs/van_gogh/vangogh_ppt.c-420-	return ret;
+docs/van_gogh/vangogh_ppt.c-421-}
+docs/van_gogh/vangogh_ppt.c-422-
+docs/van_gogh/vangogh_ppt.c:423:static int vangogh_common_get_smu_metrics_data(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-424-				       MetricsMember_t member,
+docs/van_gogh/vangogh_ppt.c-425-				       uint32_t *value)
+docs/van_gogh/vangogh_ppt.c-426-{
+docs/van_gogh/vangogh_ppt.c-427-	int ret = 0;
+docs/van_gogh/vangogh_ppt.c-428-
+docs/van_gogh/vangogh_ppt.c-429-	if (smu->smc_fw_if_version < 0x3)
+docs/van_gogh/vangogh_ppt.c:430:		ret = vangogh_get_legacy_smu_metrics_data(smu, member, value);
+docs/van_gogh/vangogh_ppt.c-431-	else
+docs/van_gogh/vangogh_ppt.c:432:		ret = vangogh_get_smu_metrics_data(smu, member, value);
+docs/van_gogh/vangogh_ppt.c-433-
+docs/van_gogh/vangogh_ppt.c-434-	return ret;
+docs/van_gogh/vangogh_ppt.c-435-}
+docs/van_gogh/vangogh_ppt.c-436-
+docs/van_gogh/vangogh_ppt.c:437:static int vangogh_allocate_dpm_context(struct smu_context *smu)
+docs/van_gogh/vangogh_ppt.c-438-{
+docs/van_gogh/vangogh_ppt.c-439-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+docs/van_gogh/vangogh_ppt.c-440-
+docs/van_gogh/vangogh_ppt.c-441-	smu_dpm->dpm_context = kzalloc_obj(struct smu_11_0_dpm_context);
+docs/van_gogh/vangogh_ppt.c-442-	if (!smu_dpm->dpm_context)
+--
+docs/van_gogh/vangogh_ppt.c-445-	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
+docs/van_gogh/vangogh_ppt.c-446-
+docs/van_gogh/vangogh_ppt.c-447-	return 0;
+docs/van_gogh/vangogh_ppt.c-448-}
+docs/van_gogh/vangogh_ppt.c-449-
+docs/van_gogh/vangogh_ppt.c:450:static int vangogh_init_smc_tables(struct smu_context *smu)
+docs/van_gogh/vangogh_ppt.c-451-{
+docs/van_gogh/vangogh_ppt.c-452-	int ret = 0;
+docs/van_gogh/vangogh_ppt.c-453-
+docs/van_gogh/vangogh_ppt.c:454:	ret = vangogh_tables_init(smu);
+docs/van_gogh/vangogh_ppt.c-455-	if (ret)
+docs/van_gogh/vangogh_ppt.c-456-		return ret;
+docs/van_gogh/vangogh_ppt.c-457-
+docs/van_gogh/vangogh_ppt.c:458:	ret = vangogh_allocate_dpm_context(smu);
+docs/van_gogh/vangogh_ppt.c-459-	if (ret)
+docs/van_gogh/vangogh_ppt.c-460-		return ret;
+docs/van_gogh/vangogh_ppt.c-461-
+docs/van_gogh/vangogh_ppt.c-462-#ifdef CONFIG_X86
+docs/van_gogh/vangogh_ppt.c-463-	/* AMD x86 APU only */
+--
+docs/van_gogh/vangogh_ppt.c-467-#endif
+docs/van_gogh/vangogh_ppt.c-468-
+docs/van_gogh/vangogh_ppt.c-469-	return smu_v11_0_init_smc_tables(smu);
+docs/van_gogh/vangogh_ppt.c-470-}
+docs/van_gogh/vangogh_ppt.c-471-
+docs/van_gogh/vangogh_ppt.c:472:static int vangogh_dpm_set_vcn_enable(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-473-				       bool enable,
+docs/van_gogh/vangogh_ppt.c-474-				       int inst)
+docs/van_gogh/vangogh_ppt.c-475-{
+docs/van_gogh/vangogh_ppt.c-476-	int ret = 0;
+docs/van_gogh/vangogh_ppt.c-477-
+--
+docs/van_gogh/vangogh_ppt.c-487-	}
+docs/van_gogh/vangogh_ppt.c-488-
+docs/van_gogh/vangogh_ppt.c-489-	return ret;
+docs/van_gogh/vangogh_ppt.c-490-}
+docs/van_gogh/vangogh_ppt.c-491-
+docs/van_gogh/vangogh_ppt.c:492:static int vangogh_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
+docs/van_gogh/vangogh_ppt.c-493-{
+docs/van_gogh/vangogh_ppt.c-494-	int ret = 0;
+docs/van_gogh/vangogh_ppt.c-495-
+docs/van_gogh/vangogh_ppt.c-496-	if (enable) {
+docs/van_gogh/vangogh_ppt.c-497-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0, NULL);
+--
+docs/van_gogh/vangogh_ppt.c-504-	}
+docs/van_gogh/vangogh_ppt.c-505-
+docs/van_gogh/vangogh_ppt.c-506-	return ret;
+docs/van_gogh/vangogh_ppt.c-507-}
+docs/van_gogh/vangogh_ppt.c-508-
+docs/van_gogh/vangogh_ppt.c:509:static bool vangogh_is_dpm_running(struct smu_context *smu)
+docs/van_gogh/vangogh_ppt.c-510-{
+docs/van_gogh/vangogh_ppt.c-511-	struct amdgpu_device *adev = smu->adev;
+docs/van_gogh/vangogh_ppt.c-512-	int ret = 0;
+docs/van_gogh/vangogh_ppt.c-513-	struct smu_feature_bits feature_enabled;
+docs/van_gogh/vangogh_ppt.c-514-
+--
+docs/van_gogh/vangogh_ppt.c-520-
+docs/van_gogh/vangogh_ppt.c-521-	if (ret)
+docs/van_gogh/vangogh_ppt.c-522-		return false;
+docs/van_gogh/vangogh_ppt.c-523-
+docs/van_gogh/vangogh_ppt.c-524-	return smu_feature_bits_test_mask(&feature_enabled,
+docs/van_gogh/vangogh_ppt.c:525:					  vangogh_dpm_features.bits);
+docs/van_gogh/vangogh_ppt.c-526-}
+docs/van_gogh/vangogh_ppt.c-527-
+docs/van_gogh/vangogh_ppt.c:528:static int vangogh_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type clk_type,
+docs/van_gogh/vangogh_ppt.c-529-						uint32_t dpm_level, uint32_t *freq)
+docs/van_gogh/vangogh_ppt.c-530-{
+docs/van_gogh/vangogh_ppt.c-531-	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+docs/van_gogh/vangogh_ppt.c-532-
+docs/van_gogh/vangogh_ppt.c-533-	if (!clk_table || clk_type >= SMU_CLK_COUNT)
+--
+docs/van_gogh/vangogh_ppt.c-566-	}
+docs/van_gogh/vangogh_ppt.c-567-
+docs/van_gogh/vangogh_ppt.c-568-	return 0;
+docs/van_gogh/vangogh_ppt.c-569-}
+docs/van_gogh/vangogh_ppt.c-570-
+docs/van_gogh/vangogh_ppt.c:571:static int vangogh_emit_legacy_clk_levels(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-572-					   enum smu_clk_type clk_type, char *buf,
+docs/van_gogh/vangogh_ppt.c-573-					   int *offset)
+docs/van_gogh/vangogh_ppt.c-574-{
+docs/van_gogh/vangogh_ppt.c-575-	int i, idx, size = *offset, ret = 0, start_offset = *offset;
+docs/van_gogh/vangogh_ppt.c-576-	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+--
+docs/van_gogh/vangogh_ppt.c-612-			size += sysfs_emit_at(buf, size, "CCLK: %7uMhz %10uMhz\n",
+docs/van_gogh/vangogh_ppt.c-613-				smu->cpu_default_soft_min_freq, smu->cpu_default_soft_max_freq);
+docs/van_gogh/vangogh_ppt.c-614-		}
+docs/van_gogh/vangogh_ppt.c-615-		break;
+docs/van_gogh/vangogh_ppt.c-616-	case SMU_SOCCLK:
+docs/van_gogh/vangogh_ppt.c:617:		/* the level 3 ~ 6 of socclk use the same frequency for vangogh */
+docs/van_gogh/vangogh_ppt.c-618-		count = clk_table->NumSocClkLevelsEnabled;
+docs/van_gogh/vangogh_ppt.c-619-		cur_value = metrics.SocclkFrequency;
+docs/van_gogh/vangogh_ppt.c-620-		break;
+docs/van_gogh/vangogh_ppt.c-621-	case SMU_VCLK:
+docs/van_gogh/vangogh_ppt.c-622-		count = clk_table->VcnClkLevelsEnabled;
+--
+docs/van_gogh/vangogh_ppt.c-646-	case SMU_DCLK:
+docs/van_gogh/vangogh_ppt.c-647-	case SMU_MCLK:
+docs/van_gogh/vangogh_ppt.c-648-	case SMU_FCLK:
+docs/van_gogh/vangogh_ppt.c-649-		for (i = 0; i < count; i++) {
+docs/van_gogh/vangogh_ppt.c-650-			idx = (clk_type == SMU_FCLK || clk_type == SMU_MCLK) ? (count - i - 1) : i;
+docs/van_gogh/vangogh_ppt.c:651:			ret = vangogh_get_dpm_clk_limited(smu, clk_type, idx, &value);
+docs/van_gogh/vangogh_ppt.c-652-			if (ret)
+docs/van_gogh/vangogh_ppt.c-653-				return ret;
+docs/van_gogh/vangogh_ppt.c-654-			if (!value)
+docs/van_gogh/vangogh_ppt.c-655-				continue;
+docs/van_gogh/vangogh_ppt.c-656-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
+--
+docs/van_gogh/vangogh_ppt.c-669-	*offset += size - start_offset;
+docs/van_gogh/vangogh_ppt.c-670-
+docs/van_gogh/vangogh_ppt.c-671-	return 0;
+docs/van_gogh/vangogh_ppt.c-672-}
+docs/van_gogh/vangogh_ppt.c-673-
+docs/van_gogh/vangogh_ppt.c:674:static int vangogh_emit_clk_levels(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-675-				    enum smu_clk_type clk_type, char *buf,
+docs/van_gogh/vangogh_ppt.c-676-				    int *offset)
+docs/van_gogh/vangogh_ppt.c-677-{
+docs/van_gogh/vangogh_ppt.c-678-	int i, idx, size = *offset, ret = 0, start_offset = *offset;
+docs/van_gogh/vangogh_ppt.c-679-	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+--
+docs/van_gogh/vangogh_ppt.c-709-			smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
+docs/van_gogh/vangogh_ppt.c-710-		size += sysfs_emit_at(buf, size, "CCLK: %7uMhz %10uMhz\n",
+docs/van_gogh/vangogh_ppt.c-711-			smu->cpu_default_soft_min_freq, smu->cpu_default_soft_max_freq);
+docs/van_gogh/vangogh_ppt.c-712-		break;
+docs/van_gogh/vangogh_ppt.c-713-	case SMU_SOCCLK:
+docs/van_gogh/vangogh_ppt.c:714:		/* the level 3 ~ 6 of socclk use the same frequency for vangogh */
+docs/van_gogh/vangogh_ppt.c-715-		count = clk_table->NumSocClkLevelsEnabled;
+docs/van_gogh/vangogh_ppt.c-716-		cur_value = metrics.Current.SocclkFrequency;
+docs/van_gogh/vangogh_ppt.c-717-		break;
+docs/van_gogh/vangogh_ppt.c-718-	case SMU_VCLK:
+docs/van_gogh/vangogh_ppt.c-719-		count = clk_table->VcnClkLevelsEnabled;
+--
+docs/van_gogh/vangogh_ppt.c-750-	case SMU_DCLK:
+docs/van_gogh/vangogh_ppt.c-751-	case SMU_MCLK:
+docs/van_gogh/vangogh_ppt.c-752-	case SMU_FCLK:
+docs/van_gogh/vangogh_ppt.c-753-		for (i = 0; i < count; i++) {
+docs/van_gogh/vangogh_ppt.c-754-			idx = (clk_type == SMU_FCLK || clk_type == SMU_MCLK) ? (count - i - 1) : i;
+docs/van_gogh/vangogh_ppt.c:755:			ret = vangogh_get_dpm_clk_limited(smu, clk_type, idx, &value);
+docs/van_gogh/vangogh_ppt.c-756-			if (ret)
+docs/van_gogh/vangogh_ppt.c-757-				return ret;
+docs/van_gogh/vangogh_ppt.c-758-			if (!value)
+docs/van_gogh/vangogh_ppt.c-759-				continue;
+docs/van_gogh/vangogh_ppt.c-760-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
+--
+docs/van_gogh/vangogh_ppt.c-777-		else
+docs/van_gogh/vangogh_ppt.c-778-			i = 1;
+docs/van_gogh/vangogh_ppt.c-779-		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
+docs/van_gogh/vangogh_ppt.c-780-				i == 0 ? "*" : "");
+docs/van_gogh/vangogh_ppt.c-781-		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+docs/van_gogh/vangogh_ppt.c:782:				i == 1 ? cur_value : VANGOGH_UMD_PSTATE_STANDARD_GFXCLK,
+docs/van_gogh/vangogh_ppt.c-783-				i == 1 ? "*" : "");
+docs/van_gogh/vangogh_ppt.c-784-		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
+docs/van_gogh/vangogh_ppt.c-785-				i == 2 ? "*" : "");
+docs/van_gogh/vangogh_ppt.c-786-		break;
+docs/van_gogh/vangogh_ppt.c-787-	default:
+--
+docs/van_gogh/vangogh_ppt.c-791-	*offset += size - start_offset;
+docs/van_gogh/vangogh_ppt.c-792-
+docs/van_gogh/vangogh_ppt.c-793-	return 0;
+docs/van_gogh/vangogh_ppt.c-794-}
+docs/van_gogh/vangogh_ppt.c-795-
+docs/van_gogh/vangogh_ppt.c:796:static int vangogh_common_emit_clk_levels(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-797-					   enum smu_clk_type clk_type, char *buf,
+docs/van_gogh/vangogh_ppt.c-798-					   int *offset)
+docs/van_gogh/vangogh_ppt.c-799-{
+docs/van_gogh/vangogh_ppt.c-800-	int ret = 0;
+docs/van_gogh/vangogh_ppt.c-801-
+docs/van_gogh/vangogh_ppt.c-802-	if (smu->smc_fw_if_version < 0x3)
+docs/van_gogh/vangogh_ppt.c:803:		ret = vangogh_emit_legacy_clk_levels(smu, clk_type, buf, offset);
+docs/van_gogh/vangogh_ppt.c-804-	else
+docs/van_gogh/vangogh_ppt.c:805:		ret = vangogh_emit_clk_levels(smu, clk_type, buf, offset);
+docs/van_gogh/vangogh_ppt.c-806-
+docs/van_gogh/vangogh_ppt.c-807-	return ret;
+docs/van_gogh/vangogh_ppt.c-808-}
+docs/van_gogh/vangogh_ppt.c-809-
+docs/van_gogh/vangogh_ppt.c:810:static int vangogh_get_profiling_clk_mask(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-811-					 enum amd_dpm_forced_level level,
+docs/van_gogh/vangogh_ppt.c-812-					 uint32_t *vclk_mask,
+docs/van_gogh/vangogh_ppt.c-813-					 uint32_t *dclk_mask,
+docs/van_gogh/vangogh_ppt.c-814-					 uint32_t *mclk_mask,
+docs/van_gogh/vangogh_ppt.c-815-					 uint32_t *fclk_mask,
+--
+docs/van_gogh/vangogh_ppt.c-859-	}
+docs/van_gogh/vangogh_ppt.c-860-
+docs/van_gogh/vangogh_ppt.c-861-	return 0;
+docs/van_gogh/vangogh_ppt.c-862-}
+docs/van_gogh/vangogh_ppt.c-863-
+docs/van_gogh/vangogh_ppt.c:864:static bool vangogh_clk_dpm_is_enabled(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-865-				enum smu_clk_type clk_type)
+docs/van_gogh/vangogh_ppt.c-866-{
+docs/van_gogh/vangogh_ppt.c-867-	enum smu_feature_mask feature_id = 0;
+docs/van_gogh/vangogh_ppt.c-868-
+docs/van_gogh/vangogh_ppt.c-869-	switch (clk_type) {
+--
+docs/van_gogh/vangogh_ppt.c-891-		return false;
+docs/van_gogh/vangogh_ppt.c-892-
+docs/van_gogh/vangogh_ppt.c-893-	return true;
+docs/van_gogh/vangogh_ppt.c-894-}
+docs/van_gogh/vangogh_ppt.c-895-
+docs/van_gogh/vangogh_ppt.c:896:static int vangogh_get_dpm_ultimate_freq(struct smu_context *smu,
+docs/van_gogh/vangogh_ppt.c-897-					enum smu_clk_type clk_type,
+docs/van_gogh/vangogh_ppt.c-898-					uint32_t *min,
+docs/van_gogh/vangogh_ppt.c-899-					uint32_t *max)
+docs/van_gogh/vangogh_ppt.c-900-{
+docs/van_gogh/vangogh_ppt.c-901-	int ret = 0;
+--
+docs/van_gogh/vangogh_ppt.c-904-	uint32_t dclk_mask;
+docs/van_gogh/vangogh_ppt.c-905-	uint32_t mclk_mask;
+docs/van_gogh/vangogh_ppt.c-906-	uint32_t fclk_mask;
+docs/van_gogh/vangogh_ppt.c-907-	uint32_t clock_limit;
+docs/van_gogh/vangogh_ppt.c-908-
+docs/van_gogh/vangogh_ppt.c:909:	if (!vangogh_clk_dpm_is_enabled(smu, clk_type)) {
+docs/van_gogh/vangogh_ppt.c-910-		switch (clk_type) {
+docs/van_gogh/vangogh_ppt.c-911-		case SMU_MCLK:
+docs/van_gogh/vangogh_ppt.c-912-		case SMU_UCLK:
+docs/van_gogh/vangogh_ppt.c-913-			clock_limit = smu->smu_table.boot_values.uclk;
+docs/van_gogh/vangogh_ppt.c-914-			break;
+--
+docs/van_gogh/vangogh_ppt.c-940-			*max = clock_limit / 100;
+docs/van_gogh/vangogh_ppt.c-941-
+docs/van_gogh/vangogh_ppt.c-942-		return 0;
+docs/van_gogh/vangogh_ppt.c-943-	}
+docs/van_gogh/vangogh_ppt.c-944-	if (max) {
+docs/van_gogh/vangogh_ppt.c:945:		ret = vangogh_get_profiling_clk_mask(smu,
+docs/van_gogh/vangogh_ppt.c-946-							AMD_DPM_FORCED_LEVEL_PROFILE_PEAK,
+docs/van_gogh/vangogh_ppt.c-947-							&vclk_mask,
+docs/van_gogh/vangogh_ppt.c-948-							&dclk_mask,
+docs/van_gogh/vangogh_ppt.c-949-							&mclk_mask,
+docs/van_gogh/vangogh_ppt.c-950-							&fclk_mask,
+--
+docs/van_gogh/vangogh_ppt.c-953-			goto failed;
+docs/van_gogh/vangogh_ppt.c-954-
+docs/van_gogh/vangogh_ppt.c-955-		switch (clk_type) {
+docs/van_gogh/vangogh_ppt.c-956-		case SMU_UCLK:
+docs/van_gogh/vangogh_ppt.c-957-		case SMU_MCLK:
+docs/van_gogh/vangogh_ppt.c:958:			ret = vangogh_get_dpm_clk_limited(smu, clk_type, mclk_mask, max);
+docs/van_gogh/vangogh_ppt.c-959-			if (ret)
+docs/van_gogh/vangogh_ppt.c-960-				goto failed;
+docs/van_gogh/vangogh_ppt.c-961-			break;

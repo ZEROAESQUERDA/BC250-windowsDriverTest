@@ -1,0 +1,37 @@
+; AMD BC-250 DirectX UMD experimental
+; INF do UMD DirectX experimental habilitado para o KMD full-WDDM BC-250.
+
+[Version]
+Signature="$Windows NT$"
+Class=Display
+ClassGUID={4d36e968-e325-11ce-bfc1-08002be10318}
+Provider=%ProviderName%
+DriverVer=08/19/2026,0.1.0.0
+CatalogFile=bc250_umd.cat
+PnpLockdown=1
+
+[DestinationDirs]
+BC250Umd.Files = 11
+
+[SourceDisksNames]
+1=%DiskName%
+
+[SourceDisksFiles]
+bc250_umd.dll=1
+
+[DefaultInstall.NTamd64]
+CopyFiles=BC250Umd.Files
+AddReg=BC250Umd.AddReg
+
+[DefaultInstall.NTamd64.Services]
+
+[BC250Umd.Files]
+bc250_umd.dll
+
+[BC250Umd.AddReg]
+HKR,,UserModeDriverName,%REG_MULTI_SZ%,bc250_umd.dll
+
+[Strings]
+ProviderName="BC250 Community Driver"
+DiskName="AMD BC-250 UMD driver disk"
+REG_MULTI_SZ=0x00010000

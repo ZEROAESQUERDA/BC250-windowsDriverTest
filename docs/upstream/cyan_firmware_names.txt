@@ -1,0 +1,8 @@
+cyan_skillfish2_ce.bin
+cyan_skillfish2_me.bin
+cyan_skillfish2_mec.bin
+cyan_skillfish2_mec2.bin
+cyan_skillfish2_pfp.bin
+cyan_skillfish2_rlc.bin
+cyan_skillfish2_sdma.bin
+cyan_skillfish2_sdma1.bin

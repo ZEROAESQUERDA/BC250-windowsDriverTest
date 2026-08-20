@@ -1,0 +1,66 @@
+; AMD BC-250 Cyan Skillfish experimental WDDM miniport
+; INF do modo experimental full-WDDM com UMD DirectX habilitado.
+
+[Version]
+Signature="$Windows NT$"
+Class=Display
+ClassGUID={4d36e968-e325-11ce-bfc1-08002be10318}
+Provider=%ProviderName%
+DriverVer=08/19/2026,0.1.0.0
+CatalogFile=bc250_kmd.cat
+PnpLockdown=1
+
+[DestinationDirs]
+BC250Kmd.Files = 12
+BC250Umd.Files = 11
+
+[SourceDisksNames]
+1=%DiskName%
+
+[SourceDisksFiles]
+bc250_kmd.sys=1
+bc250_umd.dll=1
+
+[Manufacturer]
+%ManufacturerName%=Standard,NTamd64
+
+[Standard.NTamd64]
+%DeviceName% = BC250Kmd_Install, PCI\VEN_1002&DEV_13DB
+%DeviceName% = BC250Kmd_Install, PCI\VEN_1002&DEV_13F9
+%DeviceName% = BC250Kmd_Install, PCI\VEN_1002&DEV_13FA
+%DeviceName% = BC250Kmd_Install, PCI\VEN_1002&DEV_13FB
+%DeviceName% = BC250Kmd_Install, PCI\VEN_1002&DEV_13FC
+%DeviceName% = BC250Kmd_Install, PCI\VEN_1002&DEV_13FE
+%DeviceName% = BC250Kmd_Install, PCI\VEN_1002&DEV_143F
+
+[BC250Kmd_Install]
+CopyFiles=BC250Kmd.Files,BC250Umd.Files
+AddReg=BC250Umd.AddReg
+FeatureScore=F9
+
+[BC250Kmd_Install.Services]
+AddService=bc250_kmd,0x00000002,BC250Kmd_Service
+
+[BC250Kmd_Service]
+DisplayName=%ServiceName%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\bc250_kmd.sys
+
+[BC250Kmd.Files]
+bc250_kmd.sys
+
+[BC250Umd.Files]
+bc250_umd.dll
+
+[BC250Umd.AddReg]
+HKR,,UserModeDriverName,%REG_MULTI_SZ%,bc250_umd.dll
+
+[Strings]
+ProviderName="BC250 Community Driver"
+ManufacturerName="BC250 Community Driver"
+DeviceName="AMD BC-250 Cyan Skillfish experimental WDDM driver"
+ServiceName="AMD BC-250 experimental WDDM miniport"
+DiskName="AMD BC-250 driver disk"
+REG_MULTI_SZ=0x00010000

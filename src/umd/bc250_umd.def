@@ -1,0 +1,7 @@
+LIBRARY bc250_umd
+EXPORTS
+    OpenAdapter
+    OpenAdapter10
+    OpenAdapter10_2
+    OpenAdapter11
+    OpenAdapter12

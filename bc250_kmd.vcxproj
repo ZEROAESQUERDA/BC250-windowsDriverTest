@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{4B7A7A25-B250-4D9E-8A6D-BC2500000001}</ProjectGuid>
+    <RootNamespace>bc250_kmd</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>True</UseDebugLibraries>
+    <DriverTargetPlatform>Universal</DriverTargetPlatform>
+    <DriverType>WDM</DriverType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>False</UseDebugLibraries>
+    <DriverTargetPlatform>Universal</DriverTargetPlatform>
+    <DriverType>WDM</DriverType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)out\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</IntDir>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=1;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(DDK_INC_PATH);$(SDK_INC_PATH);$(ProjectDir)src\kmd;$(ProjectDir)src\hw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExceptionHandling></ExceptionHandling>
+      <CompileAs>Default</CompileAs>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>$(DDK_LIB_PATH)\displib.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/INTEGRITYCHECK %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    </DriverSign>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;NDEBUG;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=1;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(DDK_INC_PATH);$(SDK_INC_PATH);$(ProjectDir)src\kmd;$(ProjectDir)src\hw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExceptionHandling></ExceptionHandling>
+      <CompileAs>Default</CompileAs>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>$(DDK_LIB_PATH)\displib.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/INTEGRITYCHECK %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    </DriverSign>
+  </ItemDefinitionGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetName>bc250_kmd</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetName>bc250_kmd</TargetName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ClCompile Include="src\kmd\bc250_kmd.cxx" />
+    <ClCompile Include="src\kmd\bc250_full_wddm.cxx" />
+    <ClCompile Include="src\hw\bc250_hw.c" />
+    <ClCompile Include="src\firmware\bc250_firmware.c" />
+    <ClCompile Include="src\smu\bc250_smu.c" />
+    <ClCompile Include="src\memory\bc250_memory.c" />
+    <ClCompile Include="src\memory\bc250_vidmm.c" />
+    <ClCompile Include="src\gfx\bc250_gfx.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\kmd\bc250_kmd.hxx" />
+    <ClInclude Include="src\kmd\bc250_full_wddm.hxx" />
+    <ClInclude Include="src\hw\bc250_hw.h" />
+    <ClInclude Include="src\firmware\bc250_firmware.h" />
+    <ClInclude Include="src\smu\bc250_smu.h" />
+    <ClInclude Include="src\memory\bc250_memory.h" />
+    <ClInclude Include="src\memory\bc250_vidmm.h" />
+    <ClInclude Include="src\gfx\bc250_gfx.h" />
+    <ClInclude Include="src\gfx\bc250_gfx_regs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="inf\bc250_kmd.inf" />
+    <None Include="inf\bc250_umd.inf" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

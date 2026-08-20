@@ -1,0 +1,1905 @@
+=== DEVICE / IP DISCOVERY ===
+docs/upstream/deep/amdgpu_discovery.c-22- */
+docs/upstream/deep/amdgpu_discovery.c-23-
+docs/upstream/deep/amdgpu_discovery.c-24-#include <linux/firmware.h>
+docs/upstream/deep/amdgpu_discovery.c-25-
+docs/upstream/deep/amdgpu_discovery.c-26-#include "amdgpu.h"
+docs/upstream/deep/amdgpu_discovery.c:27:#include "amdgpu_discovery.h"
+docs/upstream/deep/amdgpu_discovery.c-28-#include "soc15_hw_ip.h"
+docs/upstream/deep/amdgpu_discovery.c-29-#include "discovery.h"
+docs/upstream/deep/amdgpu_discovery.c-30-#include "amdgpu_ras.h"
+docs/upstream/deep/amdgpu_discovery.c-31-
+docs/upstream/deep/amdgpu_discovery.c-32-#include "soc15.h"
+--
+docs/upstream/deep/amdgpu_discovery.c-260-	[VPE_HWIP]	= VPE_HWID,
+docs/upstream/deep/amdgpu_discovery.c-261-	[ISP_HWIP]	= ISP_HWID,
+docs/upstream/deep/amdgpu_discovery.c-262-	[ATU_HWIP]	= ATU_HWID,
+docs/upstream/deep/amdgpu_discovery.c-263-};
+docs/upstream/deep/amdgpu_discovery.c-264-
+docs/upstream/deep/amdgpu_discovery.c:265:static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-266-					 bool *is_tmr_in_sysmem)
+docs/upstream/deep/amdgpu_discovery.c-267-{
+docs/upstream/deep/amdgpu_discovery.c-268-	u64 vram_size, tmr_offset, tmr_size;
+docs/upstream/deep/amdgpu_discovery.c-269-	u32 msg, tmr_offset_lo, tmr_offset_hi;
+docs/upstream/deep/amdgpu_discovery.c-270-	int i, ret;
+--
+docs/upstream/deep/amdgpu_discovery.c-350-	adev->discovery.debugfs_blob.size = adev->discovery.size;
+docs/upstream/deep/amdgpu_discovery.c-351-
+docs/upstream/deep/amdgpu_discovery.c-352-	return 0;
+docs/upstream/deep/amdgpu_discovery.c-353-}
+docs/upstream/deep/amdgpu_discovery.c-354-
+docs/upstream/deep/amdgpu_discovery.c:355:static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, uint8_t *binary)
+docs/upstream/deep/amdgpu_discovery.c-356-{
+docs/upstream/deep/amdgpu_discovery.c-357-	void *discv_regn;
+docs/upstream/deep/amdgpu_discovery.c-358-
+docs/upstream/deep/amdgpu_discovery.c-359-	/* This region is read-only and reserved from system use */
+docs/upstream/deep/amdgpu_discovery.c-360-	discv_regn = memremap(adev->discovery.offset, adev->discovery.size, MEMREMAP_WC);
+--
+docs/upstream/deep/amdgpu_discovery.c-368-}
+docs/upstream/deep/amdgpu_discovery.c-369-
+docs/upstream/deep/amdgpu_discovery.c-370-#define IP_DISCOVERY_V2		2
+docs/upstream/deep/amdgpu_discovery.c-371-#define IP_DISCOVERY_V4		4
+docs/upstream/deep/amdgpu_discovery.c-372-
+docs/upstream/deep/amdgpu_discovery.c:373:static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-374-						 uint8_t *binary,
+docs/upstream/deep/amdgpu_discovery.c-375-						 bool is_tmr_in_sysmem)
+docs/upstream/deep/amdgpu_discovery.c-376-{
+docs/upstream/deep/amdgpu_discovery.c-377-	int ret = 0;
+docs/upstream/deep/amdgpu_discovery.c-378-
+docs/upstream/deep/amdgpu_discovery.c-379-	if (!is_tmr_in_sysmem) {
+docs/upstream/deep/amdgpu_discovery.c-380-		if (amdgpu_sriov_vf(adev) &&
+docs/upstream/deep/amdgpu_discovery.c-381-		    amdgpu_sriov_xgmi_connected_to_cpu(adev)) {
+docs/upstream/deep/amdgpu_discovery.c:382:			ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
+docs/upstream/deep/amdgpu_discovery.c-383-		} else {
+docs/upstream/deep/amdgpu_discovery.c-384-			amdgpu_device_vram_access(adev, adev->discovery.offset,
+docs/upstream/deep/amdgpu_discovery.c-385-						  (uint32_t *)binary,
+docs/upstream/deep/amdgpu_discovery.c-386-						  adev->discovery.size, false);
+docs/upstream/deep/amdgpu_discovery.c-387-			adev->discovery.reserve_tmr = true;
+docs/upstream/deep/amdgpu_discovery.c-388-		}
+docs/upstream/deep/amdgpu_discovery.c-389-	} else {
+docs/upstream/deep/amdgpu_discovery.c:390:		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
+docs/upstream/deep/amdgpu_discovery.c-391-	}
+docs/upstream/deep/amdgpu_discovery.c-392-
+docs/upstream/deep/amdgpu_discovery.c-393-	return ret;
+docs/upstream/deep/amdgpu_discovery.c-394-}
+docs/upstream/deep/amdgpu_discovery.c-395-
+docs/upstream/deep/amdgpu_discovery.c:396:static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-397-						  uint8_t *binary,
+docs/upstream/deep/amdgpu_discovery.c-398-						  const char *fw_name)
+docs/upstream/deep/amdgpu_discovery.c-399-{
+docs/upstream/deep/amdgpu_discovery.c-400-	const struct firmware *fw;
+docs/upstream/deep/amdgpu_discovery.c-401-	int r;
+docs/upstream/deep/amdgpu_discovery.c-402-
+docs/upstream/deep/amdgpu_discovery.c-403-	r = firmware_request_nowarn(&fw, fw_name, adev->dev);
+docs/upstream/deep/amdgpu_discovery.c-404-	if (r) {
+docs/upstream/deep/amdgpu_discovery.c:405:		if (amdgpu_discovery == 2)
+docs/upstream/deep/amdgpu_discovery.c-406-			dev_err(adev->dev, "can't load firmware \"%s\"\n", fw_name);
+docs/upstream/deep/amdgpu_discovery.c-407-		else
+docs/upstream/deep/amdgpu_discovery.c-408-			drm_info(&adev->ddev, "Optional firmware \"%s\" was not found\n", fw_name);
+docs/upstream/deep/amdgpu_discovery.c-409-		return r;
+docs/upstream/deep/amdgpu_discovery.c-410-	}
+--
+docs/upstream/deep/amdgpu_discovery.c-433-	release_firmware(fw);
+docs/upstream/deep/amdgpu_discovery.c-434-
+docs/upstream/deep/amdgpu_discovery.c-435-	return 0;
+docs/upstream/deep/amdgpu_discovery.c-436-}
+docs/upstream/deep/amdgpu_discovery.c-437-
+docs/upstream/deep/amdgpu_discovery.c:438:static uint16_t amdgpu_discovery_calculate_checksum(uint8_t *data, uint32_t size)
+docs/upstream/deep/amdgpu_discovery.c-439-{
+docs/upstream/deep/amdgpu_discovery.c-440-	uint16_t checksum = 0;
+docs/upstream/deep/amdgpu_discovery.c-441-	int i;
+docs/upstream/deep/amdgpu_discovery.c-442-
+docs/upstream/deep/amdgpu_discovery.c-443-	for (i = 0; i < size; i++)
+docs/upstream/deep/amdgpu_discovery.c-444-		checksum += data[i];
+docs/upstream/deep/amdgpu_discovery.c-445-
+docs/upstream/deep/amdgpu_discovery.c-446-	return checksum;
+docs/upstream/deep/amdgpu_discovery.c-447-}
+docs/upstream/deep/amdgpu_discovery.c-448-
+docs/upstream/deep/amdgpu_discovery.c:449:static inline bool amdgpu_discovery_verify_checksum(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-450-							uint8_t *data, uint32_t size,
+docs/upstream/deep/amdgpu_discovery.c-451-						    uint16_t expected)
+docs/upstream/deep/amdgpu_discovery.c-452-{
+docs/upstream/deep/amdgpu_discovery.c-453-	uint16_t calculated;
+docs/upstream/deep/amdgpu_discovery.c-454-
+docs/upstream/deep/amdgpu_discovery.c:455:	calculated = amdgpu_discovery_calculate_checksum(data, size);
+docs/upstream/deep/amdgpu_discovery.c-456-
+docs/upstream/deep/amdgpu_discovery.c-457-	if (calculated != expected) {
+docs/upstream/deep/amdgpu_discovery.c-458-		dev_err(adev->dev, "Discovery checksum failed: calc 0x%04x != exp 0x%04x, size %u.\n",
+docs/upstream/deep/amdgpu_discovery.c-459-				calculated, expected, size);
+docs/upstream/deep/amdgpu_discovery.c-460-		return false;
+docs/upstream/deep/amdgpu_discovery.c-461-	}
+docs/upstream/deep/amdgpu_discovery.c-462-
+docs/upstream/deep/amdgpu_discovery.c-463-	return true;
+docs/upstream/deep/amdgpu_discovery.c-464-}
+docs/upstream/deep/amdgpu_discovery.c-465-
+docs/upstream/deep/amdgpu_discovery.c:466:static inline bool amdgpu_discovery_verify_binary_signature(uint8_t *binary)
+docs/upstream/deep/amdgpu_discovery.c-467-{
+docs/upstream/deep/amdgpu_discovery.c-468-	struct binary_header *bhdr;
+docs/upstream/deep/amdgpu_discovery.c-469-	bhdr = (struct binary_header *)binary;
+docs/upstream/deep/amdgpu_discovery.c-470-
+docs/upstream/deep/amdgpu_discovery.c-471-	return (le32_to_cpu(bhdr->binary_signature) == BINARY_SIGNATURE);
+docs/upstream/deep/amdgpu_discovery.c-472-}
+docs/upstream/deep/amdgpu_discovery.c-473-
+docs/upstream/deep/amdgpu_discovery.c:474:static void amdgpu_discovery_harvest_config_quirk(struct amdgpu_device *adev)
+docs/upstream/deep/amdgpu_discovery.c-475-{
+docs/upstream/deep/amdgpu_discovery.c-476-	/*
+docs/upstream/deep/amdgpu_discovery.c-477-	 * So far, apply this quirk only on those Navy Flounder boards which
+docs/upstream/deep/amdgpu_discovery.c-478-	 * have a bad harvest table of VCN config.
+docs/upstream/deep/amdgpu_discovery.c-479-	 */
+--
+docs/upstream/deep/amdgpu_discovery.c-494-			break;
+docs/upstream/deep/amdgpu_discovery.c-495-		}
+docs/upstream/deep/amdgpu_discovery.c-496-	}
+docs/upstream/deep/amdgpu_discovery.c-497-}
+docs/upstream/deep/amdgpu_discovery.c-498-
+docs/upstream/deep/amdgpu_discovery.c:499:static int amdgpu_discovery_verify_npsinfo(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-500-					   struct table_info *info)
+docs/upstream/deep/amdgpu_discovery.c-501-{
+docs/upstream/deep/amdgpu_discovery.c-502-	uint8_t *discovery_bin = adev->discovery.bin;
+docs/upstream/deep/amdgpu_discovery.c-503-	uint16_t checksum;
+docs/upstream/deep/amdgpu_discovery.c-504-	uint16_t offset;
+--
+docs/upstream/deep/amdgpu_discovery.c-512-	if (le32_to_cpu(nhdr->table_id) != NPS_INFO_TABLE_ID) {
+docs/upstream/deep/amdgpu_discovery.c-513-		dev_dbg(adev->dev, "invalid ip discovery nps info table id\n");
+docs/upstream/deep/amdgpu_discovery.c-514-		return -EINVAL;
+docs/upstream/deep/amdgpu_discovery.c-515-	}
+docs/upstream/deep/amdgpu_discovery.c-516-
+docs/upstream/deep/amdgpu_discovery.c:517:	if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
+docs/upstream/deep/amdgpu_discovery.c-518-					      le32_to_cpu(nhdr->size_bytes),
+docs/upstream/deep/amdgpu_discovery.c-519-					      checksum)) {
+docs/upstream/deep/amdgpu_discovery.c-520-		dev_dbg(adev->dev, "invalid nps info data table checksum\n");
+docs/upstream/deep/amdgpu_discovery.c-521-		return -EINVAL;
+docs/upstream/deep/amdgpu_discovery.c-522-	}
+docs/upstream/deep/amdgpu_discovery.c-523-
+docs/upstream/deep/amdgpu_discovery.c-524-	return 0;
+docs/upstream/deep/amdgpu_discovery.c-525-}
+docs/upstream/deep/amdgpu_discovery.c-526-
+docs/upstream/deep/amdgpu_discovery.c:527:static const char *amdgpu_discovery_get_fw_name(struct amdgpu_device *adev)
+docs/upstream/deep/amdgpu_discovery.c-528-{
+docs/upstream/deep/amdgpu_discovery.c:529:	if (amdgpu_discovery == 2) {
+docs/upstream/deep/amdgpu_discovery.c-530-		/* Assume there is valid discovery TMR in VRAM even if binary is sideloaded */
+docs/upstream/deep/amdgpu_discovery.c-531-		adev->discovery.reserve_tmr = true;
+docs/upstream/deep/amdgpu_discovery.c-532-		return "amdgpu/ip_discovery.bin";
+docs/upstream/deep/amdgpu_discovery.c-533-	}
+docs/upstream/deep/amdgpu_discovery.c-534-
+--
+docs/upstream/deep/amdgpu_discovery.c-553-	default:
+docs/upstream/deep/amdgpu_discovery.c-554-		return NULL;
+docs/upstream/deep/amdgpu_discovery.c-555-	}
+docs/upstream/deep/amdgpu_discovery.c-556-}
+docs/upstream/deep/amdgpu_discovery.c-557-
+docs/upstream/deep/amdgpu_discovery.c:558:static int amdgpu_discovery_get_table_info(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-559-					   struct table_info **info,
+docs/upstream/deep/amdgpu_discovery.c-560-					   uint16_t table_id)
+docs/upstream/deep/amdgpu_discovery.c-561-{
+docs/upstream/deep/amdgpu_discovery.c-562-	struct binary_header *bhdr =
+docs/upstream/deep/amdgpu_discovery.c-563-		(struct binary_header *)adev->discovery.bin;
+--
+docs/upstream/deep/amdgpu_discovery.c-578-	}
+docs/upstream/deep/amdgpu_discovery.c-579-
+docs/upstream/deep/amdgpu_discovery.c-580-	return 0;
+docs/upstream/deep/amdgpu_discovery.c-581-}
+docs/upstream/deep/amdgpu_discovery.c-582-
+docs/upstream/deep/amdgpu_discovery.c:583:static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-584-					uint8_t *discovery_bin,
+docs/upstream/deep/amdgpu_discovery.c-585-					uint16_t table_id)
+docs/upstream/deep/amdgpu_discovery.c-586-{
+docs/upstream/deep/amdgpu_discovery.c-587-	int r, act_val, exp_val, table_size;
+docs/upstream/deep/amdgpu_discovery.c-588-	uint16_t offset, checksum;
+docs/upstream/deep/amdgpu_discovery.c-589-	struct table_info *info;
+docs/upstream/deep/amdgpu_discovery.c-590-	bool check_table = true;
+docs/upstream/deep/amdgpu_discovery.c-591-	char *table_name;
+docs/upstream/deep/amdgpu_discovery.c-592-
+docs/upstream/deep/amdgpu_discovery.c:593:	r = amdgpu_discovery_get_table_info(adev, &info, table_id);
+docs/upstream/deep/amdgpu_discovery.c-594-	if (r)
+docs/upstream/deep/amdgpu_discovery.c-595-		return r;
+docs/upstream/deep/amdgpu_discovery.c-596-	offset = le16_to_cpu(info->offset);
+docs/upstream/deep/amdgpu_discovery.c-597-	checksum = le16_to_cpu(info->checksum);
+docs/upstream/deep/amdgpu_discovery.c-598-
+--
+docs/upstream/deep/amdgpu_discovery.c-653-		if (act_val != exp_val) {
+docs/upstream/deep/amdgpu_discovery.c-654-			dev_err(adev->dev, "invalid ip discovery %s signature\n", table_name);
+docs/upstream/deep/amdgpu_discovery.c-655-			return -EINVAL;
+docs/upstream/deep/amdgpu_discovery.c-656-		}
+docs/upstream/deep/amdgpu_discovery.c-657-
+docs/upstream/deep/amdgpu_discovery.c:658:		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
+docs/upstream/deep/amdgpu_discovery.c-659-						      table_size, checksum)) {
+docs/upstream/deep/amdgpu_discovery.c-660-			dev_err(adev->dev, "invalid ip discovery %s checksum\n", table_name);
+docs/upstream/deep/amdgpu_discovery.c-661-			return -EINVAL;
+docs/upstream/deep/amdgpu_discovery.c-662-		}
+docs/upstream/deep/amdgpu_discovery.c-663-	}
+docs/upstream/deep/amdgpu_discovery.c-664-
+docs/upstream/deep/amdgpu_discovery.c-665-	return 0;
+docs/upstream/deep/amdgpu_discovery.c-666-}
+docs/upstream/deep/amdgpu_discovery.c-667-
+docs/upstream/deep/amdgpu_discovery.c:668:static int amdgpu_discovery_init(struct amdgpu_device *adev)
+docs/upstream/deep/amdgpu_discovery.c-669-{
+docs/upstream/deep/amdgpu_discovery.c-670-	struct binary_header *bhdr;
+docs/upstream/deep/amdgpu_discovery.c-671-	uint8_t *discovery_bin;
+docs/upstream/deep/amdgpu_discovery.c-672-	const char *fw_name;
+docs/upstream/deep/amdgpu_discovery.c-673-	uint16_t offset;
+--
+docs/upstream/deep/amdgpu_discovery.c-675-	uint16_t checksum;
+docs/upstream/deep/amdgpu_discovery.c-676-	uint16_t table_id;
+docs/upstream/deep/amdgpu_discovery.c-677-	bool is_tmr_in_sysmem;
+docs/upstream/deep/amdgpu_discovery.c-678-	int r;
+docs/upstream/deep/amdgpu_discovery.c-679-
+docs/upstream/deep/amdgpu_discovery.c:680:	r = amdgpu_discovery_get_tmr_info(adev, &is_tmr_in_sysmem);
+docs/upstream/deep/amdgpu_discovery.c-681-	if (r)
+docs/upstream/deep/amdgpu_discovery.c-682-		return r;
+docs/upstream/deep/amdgpu_discovery.c-683-
+docs/upstream/deep/amdgpu_discovery.c-684-	discovery_bin = adev->discovery.bin;
+docs/upstream/deep/amdgpu_discovery.c-685-	/* Read from file if it is the preferred option */
+docs/upstream/deep/amdgpu_discovery.c:686:	fw_name = amdgpu_discovery_get_fw_name(adev);
+docs/upstream/deep/amdgpu_discovery.c-687-	if (fw_name != NULL) {
+docs/upstream/deep/amdgpu_discovery.c-688-		drm_dbg(&adev->ddev, "use ip discovery information from file");
+docs/upstream/deep/amdgpu_discovery.c:689:		r = amdgpu_discovery_read_binary_from_file(adev, discovery_bin,
+docs/upstream/deep/amdgpu_discovery.c-690-							   fw_name);
+docs/upstream/deep/amdgpu_discovery.c-691-		if (r)
+docs/upstream/deep/amdgpu_discovery.c-692-			goto out;
+docs/upstream/deep/amdgpu_discovery.c-693-	} else {
+docs/upstream/deep/amdgpu_discovery.c-694-		drm_dbg(&adev->ddev, "use ip discovery information from memory");
+docs/upstream/deep/amdgpu_discovery.c:695:		r = amdgpu_discovery_read_binary_from_mem(adev, discovery_bin,
+docs/upstream/deep/amdgpu_discovery.c-696-							  is_tmr_in_sysmem);
+docs/upstream/deep/amdgpu_discovery.c-697-		if (r)
+docs/upstream/deep/amdgpu_discovery.c-698-			goto out;
+docs/upstream/deep/amdgpu_discovery.c-699-	}
+docs/upstream/deep/amdgpu_discovery.c-700-
+docs/upstream/deep/amdgpu_discovery.c-701-	/* check the ip discovery binary signature */
+docs/upstream/deep/amdgpu_discovery.c:702:	if (!amdgpu_discovery_verify_binary_signature(discovery_bin)) {
+docs/upstream/deep/amdgpu_discovery.c-703-		dev_err(adev->dev,
+docs/upstream/deep/amdgpu_discovery.c-704-			"get invalid ip discovery binary signature\n");
+docs/upstream/deep/amdgpu_discovery.c-705-		r = -EINVAL;
+docs/upstream/deep/amdgpu_discovery.c-706-		goto out;
+docs/upstream/deep/amdgpu_discovery.c-707-	}
+--
+docs/upstream/deep/amdgpu_discovery.c-711-	offset = offsetof(struct binary_header, binary_checksum) +
+docs/upstream/deep/amdgpu_discovery.c-712-		sizeof(bhdr->binary_checksum);
+docs/upstream/deep/amdgpu_discovery.c-713-	size = le16_to_cpu(bhdr->binary_size) - offset;
+docs/upstream/deep/amdgpu_discovery.c-714-	checksum = le16_to_cpu(bhdr->binary_checksum);
+docs/upstream/deep/amdgpu_discovery.c-715-
+docs/upstream/deep/amdgpu_discovery.c:716:	if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset, size,
+docs/upstream/deep/amdgpu_discovery.c-717-					      checksum)) {
+docs/upstream/deep/amdgpu_discovery.c-718-		dev_err(adev->dev, "invalid ip discovery binary checksum\n");
+docs/upstream/deep/amdgpu_discovery.c-719-		r = -EINVAL;
+docs/upstream/deep/amdgpu_discovery.c-720-		goto out;
+docs/upstream/deep/amdgpu_discovery.c-721-	}
+docs/upstream/deep/amdgpu_discovery.c-722-
+docs/upstream/deep/amdgpu_discovery.c-723-	for (table_id = 0; table_id <= MALL_INFO; table_id++) {
+docs/upstream/deep/amdgpu_discovery.c:724:		r = amdgpu_discovery_table_check(adev, discovery_bin, table_id);
+docs/upstream/deep/amdgpu_discovery.c-725-		if (r)
+docs/upstream/deep/amdgpu_discovery.c-726-			goto out;
+docs/upstream/deep/amdgpu_discovery.c-727-	}
+docs/upstream/deep/amdgpu_discovery.c-728-
+docs/upstream/deep/amdgpu_discovery.c-729-	return 0;
+docs/upstream/deep/amdgpu_discovery.c-730-
+docs/upstream/deep/amdgpu_discovery.c-731-out:
+docs/upstream/deep/amdgpu_discovery.c-732-	kfree(adev->discovery.bin);
+docs/upstream/deep/amdgpu_discovery.c-733-	adev->discovery.bin = NULL;
+docs/upstream/deep/amdgpu_discovery.c:734:	if ((amdgpu_discovery != 2) &&
+docs/upstream/deep/amdgpu_discovery.c-735-	    (RREG32(mmIP_DISCOVERY_VERSION) == 4))
+docs/upstream/deep/amdgpu_discovery.c-736-		amdgpu_ras_query_boot_status(adev, 4);
+docs/upstream/deep/amdgpu_discovery.c-737-	return r;
+docs/upstream/deep/amdgpu_discovery.c-738-}
+docs/upstream/deep/amdgpu_discovery.c-739-
+docs/upstream/deep/amdgpu_discovery.c:740:static void amdgpu_discovery_sysfs_fini(struct amdgpu_device *adev);
+docs/upstream/deep/amdgpu_discovery.c-741-
+docs/upstream/deep/amdgpu_discovery.c:742:void amdgpu_discovery_fini(struct amdgpu_device *adev)
+docs/upstream/deep/amdgpu_discovery.c-743-{
+docs/upstream/deep/amdgpu_discovery.c:744:	amdgpu_discovery_sysfs_fini(adev);
+docs/upstream/deep/amdgpu_discovery.c-745-	kfree(adev->discovery.bin);
+docs/upstream/deep/amdgpu_discovery.c-746-	adev->discovery.bin = NULL;
+docs/upstream/deep/amdgpu_discovery.c-747-}
+docs/upstream/deep/amdgpu_discovery.c-748-
+docs/upstream/deep/amdgpu_discovery.c:749:static int amdgpu_discovery_validate_ip(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-750-					uint8_t instance, uint16_t hw_id)
+docs/upstream/deep/amdgpu_discovery.c-751-{
+docs/upstream/deep/amdgpu_discovery.c-752-	if (instance >= HWIP_MAX_INSTANCE) {
+docs/upstream/deep/amdgpu_discovery.c-753-		dev_err(adev->dev,
+docs/upstream/deep/amdgpu_discovery.c-754-			"Unexpected instance_number (%d) from ip discovery blob\n",
+--
+docs/upstream/deep/amdgpu_discovery.c-763-	}
+docs/upstream/deep/amdgpu_discovery.c-764-
+docs/upstream/deep/amdgpu_discovery.c-765-	return 0;
+docs/upstream/deep/amdgpu_discovery.c-766-}
+docs/upstream/deep/amdgpu_discovery.c-767-
+docs/upstream/deep/amdgpu_discovery.c:768:static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_discovery.c-769-						uint32_t *vcn_harvest_count)
+docs/upstream/deep/amdgpu_discovery.c-770-{
+docs/upstream/deep/amdgpu_discovery.c-771-	uint8_t *discovery_bin = adev->discovery.bin;
+docs/upstream/deep/amdgpu_discovery.c-772-	struct binary_header *bhdr;
+docs/upstream/deep/amdgpu_discovery.c-773-	struct ip_discovery_header *ihdr;
+--
+docs/upstream/deep/amdgpu_discovery.c-793-
+docs/upstream/deep/amdgpu_discovery.c-794-		for (j = 0; j < num_ips; j++) {
+docs/upstream/deep/amdgpu_discovery.c-795-			ip = (struct ip *)(discovery_bin + ip_offset);
+docs/upstream/deep/amdgpu_discovery.c-796-			inst = ip->number_instance;
+docs/upstream/deep/amdgpu_discovery.c-797-			hw_id = le16_to_cpu(ip->hw_id);
+docs/upstream/deep/amdgpu_discovery.c:798:			if (amdgpu_discovery_validate_ip(adev, inst, hw_id))
+docs/upstream/deep/amdgpu_discovery.c-799-				goto next_ip;
+docs/upstream/deep/amdgpu_discovery.c-800-
+docs/upstream/deep/amdgpu_discovery.c-801-			if (ip->harvest == 1) {
+=== FIRMWARE DECLARATIONS ===
+docs/upstream/deep/amdgpu_discovery.c:49:#include "sdma_v4_0.h"
+docs/upstream/deep/amdgpu_discovery.c:50:#include "sdma_v4_4_2.h"
+docs/upstream/deep/amdgpu_discovery.c:84:#include "sdma_v5_0.h"
+docs/upstream/deep/amdgpu_discovery.c:85:#include "sdma_v5_2.h"
+docs/upstream/deep/amdgpu_discovery.c:86:#include "sdma_v6_0.h"
+docs/upstream/deep/amdgpu_discovery.c:87:#include "sdma_v7_0.h"
+docs/upstream/deep/amdgpu_discovery.c:88:#include "sdma_v7_1.h"
+docs/upstream/deep/amdgpu_discovery.c:89:#include "lsdma_v6_0.h"
+docs/upstream/deep/amdgpu_discovery.c:90:#include "lsdma_v7_0.h"
+docs/upstream/deep/amdgpu_discovery.c:91:#include "lsdma_v7_1.h"
+docs/upstream/deep/amdgpu_discovery.c:129:MODULE_FIRMWARE("amdgpu/ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:130:MODULE_FIRMWARE("amdgpu/vega10_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:131:MODULE_FIRMWARE("amdgpu/vega12_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:132:MODULE_FIRMWARE("amdgpu/vega20_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:133:MODULE_FIRMWARE("amdgpu/raven_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:134:MODULE_FIRMWARE("amdgpu/raven2_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:135:MODULE_FIRMWARE("amdgpu/picasso_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:136:MODULE_FIRMWARE("amdgpu/arcturus_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:137:MODULE_FIRMWARE("amdgpu/aldebaran_ip_discovery.bin");
+docs/upstream/deep/amdgpu_discovery.c:889:			adev->sdma.sdma_mask &= ~BIT(inst);
+docs/upstream/deep/amdgpu_discovery.c:1175:		harvest = ((1 << inst) & adev->sdma.sdma_mask) == 0;
+docs/upstream/deep/amdgpu_discovery.c:1523:	adev->sdma.sdma_mask = 0;
+docs/upstream/deep/amdgpu_discovery.c:1595:				if (adev->sdma.num_instances <
+docs/upstream/deep/amdgpu_discovery.c:1597:					adev->sdma.num_instances++;
+docs/upstream/deep/amdgpu_discovery.c:1598:					adev->sdma.sdma_mask |=
+docs/upstream/deep/amdgpu_discovery.c:1602:						adev->sdma.num_instances + 1,
+docs/upstream/deep/amdgpu_discovery.c:2284:		amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2287:		amdgpu_device_ip_block_add(adev, &psp_v11_0_8_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2548:static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
+docs/upstream/deep/amdgpu_discovery.c:2559:		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2564:		amdgpu_device_ip_block_add(adev, &sdma_v4_4_2_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2570:		amdgpu_device_ip_block_add(adev, &sdma_v5_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2580:		amdgpu_device_ip_block_add(adev, &sdma_v5_2_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2592:		amdgpu_device_ip_block_add(adev, &sdma_v6_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2596:		amdgpu_device_ip_block_add(adev, &sdma_v7_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2599:		amdgpu_device_ip_block_add(adev, &sdma_v7_1_ip_block);
+docs/upstream/deep/amdgpu_discovery.c:2603:			"Failed to add sdma ip block(SDMA0_HWIP:0x%x)\n",
+docs/upstream/deep/amdgpu_discovery.c:2853:		adev->sdma.num_instances = 2;
+docs/upstream/deep/amdgpu_discovery.c:2854:		adev->sdma.sdma_mask = 3;
+docs/upstream/deep/amdgpu_discovery.c:2882:		adev->sdma.num_instances = 2;
+docs/upstream/deep/amdgpu_discovery.c:2883:		adev->sdma.sdma_mask = 3;
+docs/upstream/deep/amdgpu_discovery.c:2911:		adev->sdma.num_instances = 1;
+docs/upstream/deep/amdgpu_discovery.c:2912:		adev->sdma.sdma_mask = 1;
+docs/upstream/deep/amdgpu_discovery.c:2959:		adev->sdma.num_instances = 2;
+docs/upstream/deep/amdgpu_discovery.c:2960:		adev->sdma.sdma_mask = 3;
+docs/upstream/deep/amdgpu_discovery.c:2989:		adev->sdma.num_instances = 8;
+docs/upstream/deep/amdgpu_discovery.c:2990:		adev->sdma.sdma_mask = 0xff;
+docs/upstream/deep/amdgpu_discovery.c:3024:		adev->sdma.num_instances = 5;
+docs/upstream/deep/amdgpu_discovery.c:3025:		adev->sdma.sdma_mask = 0x1f;
+docs/upstream/deep/amdgpu_discovery.c:3061:			cyan_skillfish_reg_base_init(adev);
+docs/upstream/deep/amdgpu_discovery.c:3062:			adev->sdma.num_instances = 2;
+docs/upstream/deep/amdgpu_discovery.c:3063:			adev->sdma.sdma_mask = 3;
+docs/upstream/deep/amdgpu_discovery.c:3397:		adev->lsdma.funcs = &lsdma_v6_0_funcs;
+docs/upstream/deep/amdgpu_discovery.c:3401:		adev->lsdma.funcs = &lsdma_v7_0_funcs;
+docs/upstream/deep/amdgpu_discovery.c:3404:		adev->lsdma.funcs = &lsdma_v7_1_funcs;
+docs/upstream/deep/amdgpu_discovery.c:3452:	r = amdgpu_discovery_set_sdma_ip_blocks(adev);
+docs/upstream/deep/amdgpu_gfx.c:31:#include "amdgpu_rlc.h"
+docs/upstream/deep/amdgpu_gfx.c:48:int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
+docs/upstream/deep/amdgpu_gfx.c:53:	bit += mec * adev->gfx.mec.num_pipe_per_mec
+docs/upstream/deep/amdgpu_gfx.c:54:		* adev->gfx.mec.num_queue_per_pipe;
+docs/upstream/deep/amdgpu_gfx.c:55:	bit += pipe * adev->gfx.mec.num_queue_per_pipe;
+docs/upstream/deep/amdgpu_gfx.c:61:void amdgpu_queue_mask_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+docs/upstream/deep/amdgpu_gfx.c:62:				 int *mec, int *pipe, int *queue)
+docs/upstream/deep/amdgpu_gfx.c:64:	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
+docs/upstream/deep/amdgpu_gfx.c:65:	*pipe = (bit / adev->gfx.mec.num_queue_per_pipe)
+docs/upstream/deep/amdgpu_gfx.c:66:		% adev->gfx.mec.num_pipe_per_mec;
+docs/upstream/deep/amdgpu_gfx.c:67:	*mec = (bit / adev->gfx.mec.num_queue_per_pipe)
+docs/upstream/deep/amdgpu_gfx.c:68:	       / adev->gfx.mec.num_pipe_per_mec;
+docs/upstream/deep/amdgpu_gfx.c:72:bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_gfx.c:73:				     int xcc_id, int mec, int pipe, int queue)
+docs/upstream/deep/amdgpu_gfx.c:75:	return test_bit(amdgpu_gfx_mec_queue_to_bit(adev, mec, pipe, queue),
+docs/upstream/deep/amdgpu_gfx.c:76:			adev->gfx.mec_bitmap[xcc_id].queue_bitmap);
+docs/upstream/deep/amdgpu_gfx.c:168:	return adev->gfx.mec.num_mec > 1;
+docs/upstream/deep/amdgpu_gfx.c:210:	int max_queues_per_mec = min(adev->gfx.mec.num_pipe_per_mec *
+docs/upstream/deep/amdgpu_gfx.c:211:				     adev->gfx.mec.num_queue_per_pipe,
+docs/upstream/deep/amdgpu_gfx.c:219:			for (i = 0; i < max_queues_per_mec; i++) {
+docs/upstream/deep/amdgpu_gfx.c:220:				pipe = i % adev->gfx.mec.num_pipe_per_mec;
+docs/upstream/deep/amdgpu_gfx.c:221:				queue = (i / adev->gfx.mec.num_pipe_per_mec) %
+docs/upstream/deep/amdgpu_gfx.c:222:					 adev->gfx.mec.num_queue_per_pipe;
+docs/upstream/deep/amdgpu_gfx.c:224:				set_bit(pipe * adev->gfx.mec.num_queue_per_pipe + queue,
+docs/upstream/deep/amdgpu_gfx.c:225:					adev->gfx.mec_bitmap[j].queue_bitmap);
+docs/upstream/deep/amdgpu_gfx.c:231:			for (i = 0; i < max_queues_per_mec; ++i)
+docs/upstream/deep/amdgpu_gfx.c:232:				set_bit(i, adev->gfx.mec_bitmap[j].queue_bitmap);
+docs/upstream/deep/amdgpu_gfx.c:237:		dev_dbg(adev->dev, "mec queue bitmap weight=%d\n",
+docs/upstream/deep/amdgpu_gfx.c:238:			bitmap_weight(adev->gfx.mec_bitmap[j].queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES));
+docs/upstream/deep/amdgpu_gfx.c:275:	int mec, pipe, queue;
+docs/upstream/deep/amdgpu_gfx.c:277:	queue_bit = adev->gfx.mec.num_mec
+docs/upstream/deep/amdgpu_gfx.c:278:		    * adev->gfx.mec.num_pipe_per_mec
+docs/upstream/deep/amdgpu_gfx.c:279:		    * adev->gfx.mec.num_queue_per_pipe;
+docs/upstream/deep/amdgpu_gfx.c:282:		if (test_bit(queue_bit, adev->gfx.mec_bitmap[xcc_id].queue_bitmap))
+docs/upstream/deep/amdgpu_gfx.c:285:		amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
+docs/upstream/deep/amdgpu_gfx.c:292:		if ((mec == 1 && pipe > 1) || queue != 0)
+docs/upstream/deep/amdgpu_gfx.c:295:		ring->me = mec + 1;
+docs/upstream/deep/amdgpu_gfx.c:463:			adev->gfx.mec.mqd_backup[j] = kzalloc(compute_mqd_size, GFP_KERNEL);
+docs/upstream/deep/amdgpu_gfx.c:464:			if (!adev->gfx.mec.mqd_backup[j]) {
+docs/upstream/deep/amdgpu_gfx.c:493:		kfree(adev->gfx.mec.mqd_backup[j]);
+docs/upstream/deep/amdgpu_gfx.c:662:	int mec, pipe, queue;
+docs/upstream/deep/amdgpu_gfx.c:665:	amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
+docs/upstream/deep/amdgpu_gfx.c:667:	set_resource_bit = mec * 4 * 8 + pipe * 8 + queue;
+docs/upstream/deep/amdgpu_gfx.c:725:		if (!test_bit(i, adev->gfx.mec_bitmap[xcc_id].queue_bitmap))
+docs/upstream/deep/amdgpu_gfx.c:741:	dev_info(adev->dev, "kiq ring mec %d pipe %d q %d\n", kiq_ring->me,
+docs/upstream/deep/amdgpu_gfx.c:1462:			adev->gfx.mec_fw->data;
+docs/upstream/deep/amdgpu_gfx.c:1463:		adev->gfx.mec_fw_version =
+docs/upstream/deep/amdgpu_gfx.c:1465:		adev->gfx.mec_feature_version =
+docs/upstream/deep/amdgpu_gfx.c:1467:		ucode_fw = adev->gfx.mec_fw;
+docs/upstream/deep/amdgpu_gfx.c:1473:			adev->gfx.mec_fw->data;
+docs/upstream/deep/amdgpu_gfx.c:1474:		ucode_fw = adev->gfx.mec_fw;
+docs/upstream/deep/amdgpu_gfx.c:1479:			adev->gfx.mec2_fw->data;
+docs/upstream/deep/amdgpu_gfx.c:1480:		adev->gfx.mec2_fw_version =
+docs/upstream/deep/amdgpu_gfx.c:1482:		adev->gfx.mec2_feature_version =
+docs/upstream/deep/amdgpu_gfx.c:1484:		ucode_fw = adev->gfx.mec2_fw;
+docs/upstream/deep/amdgpu_gfx.c:1490:			adev->gfx.mec2_fw->data;
+docs/upstream/deep/amdgpu_gfx.c:1491:		ucode_fw = adev->gfx.mec2_fw;
+docs/upstream/deep/amdgpu_gfx.c:1496:			adev->gfx.mec_fw->data;
+docs/upstream/deep/amdgpu_gfx.c:1497:		adev->gfx.mec_fw_version =
+docs/upstream/deep/amdgpu_gfx.c:1499:		adev->gfx.mec_feature_version =
+docs/upstream/deep/amdgpu_gfx.c:1501:		ucode_fw = adev->gfx.mec_fw;
+docs/upstream/deep/amdgpu_gfx.c:1509:			adev->gfx.mec_fw->data;
+docs/upstream/deep/amdgpu_gfx.c:1510:		ucode_fw = adev->gfx.mec_fw;
+docs/upstream/deep/amdgpu_gfx.c:2170: * The function uses a reference count mechanism (kfd_sch_req_count) to keep
+docs/upstream/deep/amdgpu_gfx.c:2536:	for (sect = adev->gfx.rlc.cs_data; sect->section != NULL; ++sect) {
+docs/upstream/deep/amdgpu_gmc.c:685:		if (amdgpu_sdma_is_shared_inv_eng(adev, ring))
+docs/upstream/deep/amdgpu_gmc.c:708:		shared_ring = amdgpu_sdma_get_shared_ring(adev, ring);
+docs/upstream/deep/amdgpu_gmc.c:731:	if (!hub->sdma_invalidation_workaround || vmid ||
+docs/upstream/deep/psp_v11_0.c:33:#include "psp_v11_0.h"
+docs/upstream/deep/psp_v11_0.c:38:#include "sdma0/sdma0_4_0_offset.h"
+docs/upstream/deep/psp_v11_0.c:44:MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
+docs/upstream/deep/psp_v11_0.c:45:MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
+docs/upstream/deep/psp_v11_0.c:46:MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
+docs/upstream/deep/psp_v11_0.c:47:MODULE_FIRMWARE("amdgpu/navi10_sos.bin");
+docs/upstream/deep/psp_v11_0.c:48:MODULE_FIRMWARE("amdgpu/navi10_asd.bin");
+docs/upstream/deep/psp_v11_0.c:49:MODULE_FIRMWARE("amdgpu/navi10_ta.bin");
+docs/upstream/deep/psp_v11_0.c:50:MODULE_FIRMWARE("amdgpu/navi14_sos.bin");
+docs/upstream/deep/psp_v11_0.c:51:MODULE_FIRMWARE("amdgpu/navi14_asd.bin");
+docs/upstream/deep/psp_v11_0.c:52:MODULE_FIRMWARE("amdgpu/navi14_ta.bin");
+docs/upstream/deep/psp_v11_0.c:53:MODULE_FIRMWARE("amdgpu/navi12_sos.bin");
+docs/upstream/deep/psp_v11_0.c:54:MODULE_FIRMWARE("amdgpu/navi12_asd.bin");
+docs/upstream/deep/psp_v11_0.c:55:MODULE_FIRMWARE("amdgpu/navi12_ta.bin");
+docs/upstream/deep/psp_v11_0.c:56:MODULE_FIRMWARE("amdgpu/navi12_cap.bin");
+docs/upstream/deep/psp_v11_0.c:57:MODULE_FIRMWARE("amdgpu/arcturus_sos.bin");
+docs/upstream/deep/psp_v11_0.c:58:MODULE_FIRMWARE("amdgpu/arcturus_asd.bin");
+docs/upstream/deep/psp_v11_0.c:59:MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
+docs/upstream/deep/psp_v11_0.c:60:MODULE_FIRMWARE("amdgpu/sienna_cichlid_sos.bin");
+docs/upstream/deep/psp_v11_0.c:61:MODULE_FIRMWARE("amdgpu/sienna_cichlid_ta.bin");
+docs/upstream/deep/psp_v11_0.c:62:MODULE_FIRMWARE("amdgpu/sienna_cichlid_cap.bin");
+docs/upstream/deep/psp_v11_0.c:63:MODULE_FIRMWARE("amdgpu/navy_flounder_sos.bin");
+docs/upstream/deep/psp_v11_0.c:64:MODULE_FIRMWARE("amdgpu/navy_flounder_ta.bin");
+docs/upstream/deep/psp_v11_0.c:65:MODULE_FIRMWARE("amdgpu/vangogh_asd.bin");
+docs/upstream/deep/psp_v11_0.c:66:MODULE_FIRMWARE("amdgpu/vangogh_toc.bin");
+docs/upstream/deep/psp_v11_0.c:67:MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_sos.bin");
+docs/upstream/deep/psp_v11_0.c:68:MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_ta.bin");
+docs/upstream/deep/psp_v11_0.c:69:MODULE_FIRMWARE("amdgpu/beige_goby_sos.bin");
+docs/upstream/deep/psp_v11_0.c:70:MODULE_FIRMWARE("amdgpu/beige_goby_ta.bin");
+docs/upstream/deep/psp_v11_0.c:88:static int psp_v11_0_init_microcode(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:145:static int psp_v11_wait_for_tos_unload(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:166:static int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:175:		return psp_v11_wait_for_tos_unload(psp);
+docs/upstream/deep/psp_v11_0.c:191:static bool psp_v11_0_is_sos_alive(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:201:static int psp_v11_0_bootloader_load_component(struct psp_context  	*psp,
+docs/upstream/deep/psp_v11_0.c:212:	if (psp_v11_0_is_sos_alive(psp))
+docs/upstream/deep/psp_v11_0.c:215:	ret = psp_v11_0_wait_for_bootloader(psp);
+docs/upstream/deep/psp_v11_0.c:231:	ret = psp_v11_0_wait_for_bootloader(psp);
+docs/upstream/deep/psp_v11_0.c:236:static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:238:	return psp_v11_0_bootloader_load_component(psp, &psp->kdb, PSP_BL__LOAD_KEY_DATABASE);
+docs/upstream/deep/psp_v11_0.c:241:static int psp_v11_0_bootloader_load_spl(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:243:	return psp_v11_0_bootloader_load_component(psp, &psp->spl, PSP_BL__LOAD_TOS_SPL_TABLE);
+docs/upstream/deep/psp_v11_0.c:246:static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:248:	return psp_v11_0_bootloader_load_component(psp, &psp->sys, PSP_BL__LOAD_SYSDRV);
+docs/upstream/deep/psp_v11_0.c:251:static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:260:	if (psp_v11_0_is_sos_alive(psp))
+docs/upstream/deep/psp_v11_0.c:263:	ret = psp_v11_0_wait_for_bootloader(psp);
+docs/upstream/deep/psp_v11_0.c:288:static int psp_v11_0_ring_stop(struct psp_context *psp,
+docs/upstream/deep/psp_v11_0.c:318:static int psp_v11_0_ring_create(struct psp_context *psp,
+docs/upstream/deep/psp_v11_0.c:328:		ret = psp_v11_0_ring_stop(psp, ring_type);
+docs/upstream/deep/psp_v11_0.c:330:			DRM_ERROR("psp_v11_0_ring_stop_sriov failed!\n");
+docs/upstream/deep/psp_v11_0.c:390:static int psp_v11_0_ring_destroy(struct psp_context *psp,
+docs/upstream/deep/psp_v11_0.c:397:	ret = psp_v11_0_ring_stop(psp, ring_type);
+docs/upstream/deep/psp_v11_0.c:408:static int psp_v11_0_mode1_reset(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:432:static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
+docs/upstream/deep/psp_v11_0.c:467:static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
+docs/upstream/deep/psp_v11_0.c:485:	if (psp_v11_0_is_sos_alive(psp)) {
+docs/upstream/deep/psp_v11_0.c:550:			ret = psp_v11_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
+docs/upstream/deep/psp_v11_0.c:577:		ret = psp_v11_0_memory_training_send_msg(psp, (amdgpu_force_long_training > 0) ?
+docs/upstream/deep/psp_v11_0.c:588:static uint32_t psp_v11_0_ring_get_wptr(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:601:static void psp_v11_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
+docs/upstream/deep/psp_v11_0.c:613:static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, uint64_t fw_pri_mc_addr)
+docs/upstream/deep/psp_v11_0.c:656:static int psp_v11_0_read_usbc_pd_fw(struct psp_context *psp, uint32_t *fw_ver)
+docs/upstream/deep/psp_v11_0.c:671:static const struct psp_funcs psp_v11_0_funcs = {
+docs/upstream/deep/psp_v11_0.c:672:	.init_microcode = psp_v11_0_init_microcode,
+docs/upstream/deep/psp_v11_0.c:673:	.bootloader_load_kdb = psp_v11_0_bootloader_load_kdb,
+docs/upstream/deep/psp_v11_0.c:674:	.bootloader_load_spl = psp_v11_0_bootloader_load_spl,
+docs/upstream/deep/psp_v11_0.c:675:	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
+docs/upstream/deep/psp_v11_0.c:676:	.bootloader_load_sos = psp_v11_0_bootloader_load_sos,
+docs/upstream/deep/psp_v11_0.c:677:	.ring_create = psp_v11_0_ring_create,
+docs/upstream/deep/psp_v11_0.c:678:	.ring_stop = psp_v11_0_ring_stop,
+docs/upstream/deep/psp_v11_0.c:679:	.ring_destroy = psp_v11_0_ring_destroy,
+docs/upstream/deep/psp_v11_0.c:680:	.mode1_reset = psp_v11_0_mode1_reset,
+docs/upstream/deep/psp_v11_0.c:681:	.mem_training = psp_v11_0_memory_training,
+docs/upstream/deep/psp_v11_0.c:682:	.ring_get_wptr = psp_v11_0_ring_get_wptr,
+docs/upstream/deep/psp_v11_0.c:683:	.ring_set_wptr = psp_v11_0_ring_set_wptr,
+docs/upstream/deep/psp_v11_0.c:684:	.load_usbc_pd_fw = psp_v11_0_load_usbc_pd_fw,
+docs/upstream/deep/psp_v11_0.c:685:	.read_usbc_pd_fw = psp_v11_0_read_usbc_pd_fw,
+docs/upstream/deep/psp_v11_0.c:686:	.wait_for_bootloader = psp_v11_0_wait_for_bootloader
+docs/upstream/deep/psp_v11_0.c:689:void psp_v11_0_set_psp_funcs(struct psp_context *psp)
+docs/upstream/deep/psp_v11_0.c:691:	psp->funcs = &psp_v11_0_funcs;
+docs/upstream/deep/cyan_skillfish_ppt.c:29:#include "smu11_driver_if_cyan_skillfish.h"
+docs/upstream/deep/cyan_skillfish_ppt.c:30:#include "cyan_skillfish_ppt.h"
+docs/upstream/deep/cyan_skillfish_ppt.c:31:#include "smu_v11_8_ppsmc.h"
+docs/upstream/deep/cyan_skillfish_ppt.c:59:} cyan_skillfish_user_settings;
+docs/upstream/deep/cyan_skillfish_ppt.c:61:static uint32_t cyan_skillfish_sclk_default;
+docs/upstream/deep/cyan_skillfish_ppt.c:63:static const struct smu_feature_bits cyan_skillfish_dpm_features = {
+docs/upstream/deep/cyan_skillfish_ppt.c:71:static struct cmn2asic_msg_mapping cyan_skillfish_message_map[SMU_MSG_MAX_COUNT] = {
+docs/upstream/deep/cyan_skillfish_ppt.c:85:static struct cmn2asic_mapping cyan_skillfish_table_map[SMU_TABLE_COUNT] = {
+docs/upstream/deep/cyan_skillfish_ppt.c:89:static int cyan_skillfish_tables_init(struct smu_context *smu)
+docs/upstream/deep/cyan_skillfish_ppt.c:120:static int cyan_skillfish_init_smc_tables(struct smu_context *smu)
+docs/upstream/deep/cyan_skillfish_ppt.c:124:	ret = cyan_skillfish_tables_init(smu);
+docs/upstream/deep/cyan_skillfish_ppt.c:128:	return smu_v11_0_init_smc_tables(smu);
+docs/upstream/deep/cyan_skillfish_ppt.c:132:cyan_skillfish_get_smu_metrics_data(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:191:static int cyan_skillfish_read_sensor(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:203:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:210:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:217:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:223:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:229:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:235:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:241:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:247:		ret = cyan_skillfish_get_smu_metrics_data(smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:260:static int cyan_skillfish_get_current_clk_freq(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:288:	return cyan_skillfish_get_smu_metrics_data(smu, member_type, value);
+docs/upstream/deep/cyan_skillfish_ppt.c:291:static int cyan_skillfish_emit_clk_levels(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:301:		ret  = cyan_skillfish_get_smu_metrics_data(smu, METRICS_CURR_GFXCLK, &cur_value);
+docs/upstream/deep/cyan_skillfish_ppt.c:308:		ret  = cyan_skillfish_get_smu_metrics_data(smu, METRICS_VOLTAGE_VDDGFX, &cur_value);
+docs/upstream/deep/cyan_skillfish_ppt.c:326:		ret = cyan_skillfish_get_current_clk_freq(smu, clk_type, &cur_value);
+docs/upstream/deep/cyan_skillfish_ppt.c:333:		ret = cyan_skillfish_get_current_clk_freq(smu, clk_type, &cur_value);
+docs/upstream/deep/cyan_skillfish_ppt.c:345:				i == 1 ? cur_value : cyan_skillfish_sclk_default,
+docs/upstream/deep/cyan_skillfish_ppt.c:360:static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
+docs/upstream/deep/cyan_skillfish_ppt.c:375:	 * cyan_skillfish specific, query default sclk inseted of hard code.
+docs/upstream/deep/cyan_skillfish_ppt.c:377:	if (!cyan_skillfish_sclk_default)
+docs/upstream/deep/cyan_skillfish_ppt.c:378:		cyan_skillfish_get_smu_metrics_data(smu, METRICS_CURR_GFXCLK,
+docs/upstream/deep/cyan_skillfish_ppt.c:379:			&cyan_skillfish_sclk_default);
+docs/upstream/deep/cyan_skillfish_ppt.c:382:					  cyan_skillfish_dpm_features.bits);
+docs/upstream/deep/cyan_skillfish_ppt.c:385:static ssize_t cyan_skillfish_get_gpu_metrics(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:442:static int cyan_skillfish_od_edit_dpm_table(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:470:		cyan_skillfish_user_settings.sclk = input[1];
+docs/upstream/deep/cyan_skillfish_ppt.c:471:		cyan_skillfish_user_settings.vddc = input[2];
+docs/upstream/deep/cyan_skillfish_ppt.c:480:		cyan_skillfish_user_settings.sclk = cyan_skillfish_sclk_default;
+docs/upstream/deep/cyan_skillfish_ppt.c:481:		cyan_skillfish_user_settings.vddc = CYAN_SKILLFISH_VDDC_MAGIC;
+docs/upstream/deep/cyan_skillfish_ppt.c:490:		if (cyan_skillfish_user_settings.sclk < CYAN_SKILLFISH_SCLK_MIN ||
+docs/upstream/deep/cyan_skillfish_ppt.c:491:		    cyan_skillfish_user_settings.sclk > CYAN_SKILLFISH_SCLK_MAX) {
+docs/upstream/deep/cyan_skillfish_ppt.c:497:		if ((cyan_skillfish_user_settings.vddc != CYAN_SKILLFISH_VDDC_MAGIC) &&
+docs/upstream/deep/cyan_skillfish_ppt.c:498:			(cyan_skillfish_user_settings.vddc < CYAN_SKILLFISH_VDDC_MIN ||
+docs/upstream/deep/cyan_skillfish_ppt.c:499:			cyan_skillfish_user_settings.vddc > CYAN_SKILLFISH_VDDC_MAX)) {
+docs/upstream/deep/cyan_skillfish_ppt.c:505:		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RequestGfxclk,
+docs/upstream/deep/cyan_skillfish_ppt.c:506:					cyan_skillfish_user_settings.sclk, NULL);
+docs/upstream/deep/cyan_skillfish_ppt.c:512:		if (cyan_skillfish_user_settings.vddc == CYAN_SKILLFISH_VDDC_MAGIC) {
+docs/upstream/deep/cyan_skillfish_ppt.c:513:			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_UnforceGfxVid, NULL);
+docs/upstream/deep/cyan_skillfish_ppt.c:523:			vid = (1550 - cyan_skillfish_user_settings.vddc) * 160 / 1000;
+docs/upstream/deep/cyan_skillfish_ppt.c:524:			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ForceGfxVid, vid, NULL);
+docs/upstream/deep/cyan_skillfish_ppt.c:539:static int cyan_skillfish_get_dpm_ultimate_freq(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:554:		ret = cyan_skillfish_get_current_clk_freq(smu, clk_type, &low);
+docs/upstream/deep/cyan_skillfish_ppt.c:570:cyan_skillfish_get_enabled_mask(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:580:static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
+docs/upstream/deep/cyan_skillfish_ppt.c:586:	.init_smc_tables = cyan_skillfish_init_smc_tables,
+docs/upstream/deep/cyan_skillfish_ppt.c:587:	.fini_smc_tables = smu_v11_0_fini_smc_tables,
+docs/upstream/deep/cyan_skillfish_ppt.c:588:	.read_sensor = cyan_skillfish_read_sensor,
+docs/upstream/deep/cyan_skillfish_ppt.c:589:	.emit_clk_levels = cyan_skillfish_emit_clk_levels,
+docs/upstream/deep/cyan_skillfish_ppt.c:590:	.get_enabled_mask = cyan_skillfish_get_enabled_mask,
+docs/upstream/deep/cyan_skillfish_ppt.c:591:	.is_dpm_running = cyan_skillfish_is_dpm_running,
+docs/upstream/deep/cyan_skillfish_ppt.c:592:	.get_gpu_metrics = cyan_skillfish_get_gpu_metrics,
+docs/upstream/deep/cyan_skillfish_ppt.c:593:	.od_edit_dpm_table = cyan_skillfish_od_edit_dpm_table,
+docs/upstream/deep/cyan_skillfish_ppt.c:594:	.get_dpm_ultimate_freq = cyan_skillfish_get_dpm_ultimate_freq,
+docs/upstream/deep/cyan_skillfish_ppt.c:601:void cyan_skillfish_set_ppt_funcs(struct smu_context *smu)
+docs/upstream/deep/cyan_skillfish_ppt.c:603:	smu->ppt_funcs = &cyan_skillfish_ppt_funcs;
+docs/upstream/deep/cyan_skillfish_ppt.c:604:	smu->table_map = cyan_skillfish_table_map;
+docs/upstream/deep/cyan_skillfish_ppt.c:606:	smu->smc_driver_if_version = MP1_DRIVER_IF_VERSION;
+docs/upstream/deep/cyan_skillfish_ppt.c:607:	smu_v11_0_init_msg_ctl(smu, cyan_skillfish_message_map);
+docs/upstream/deep/cyan_skillfish_ppt.h:27:extern void cyan_skillfish_set_ppt_funcs(struct smu_context *smu);
+docs/upstream/deep/smu_v11_0.c:59:MODULE_FIRMWARE("amdgpu/arcturus_smc.bin");
+docs/upstream/deep/smu_v11_0.c:60:MODULE_FIRMWARE("amdgpu/navi10_smc.bin");
+docs/upstream/deep/smu_v11_0.c:61:MODULE_FIRMWARE("amdgpu/navi14_smc.bin");
+docs/upstream/deep/smu_v11_0.c:62:MODULE_FIRMWARE("amdgpu/navi12_smc.bin");
+docs/upstream/deep/smu_v11_0.c:63:MODULE_FIRMWARE("amdgpu/sienna_cichlid_smc.bin");
+docs/upstream/deep/smu_v11_0.c:64:MODULE_FIRMWARE("amdgpu/navy_flounder_smc.bin");
+docs/upstream/deep/smu_v11_0.c:65:MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
+docs/upstream/deep/smu_v11_0.c:66:MODULE_FIRMWARE("amdgpu/beige_goby_smc.bin");
+docs/upstream/deep/smu_v11_0.c:98:	const struct smc_firmware_header_v1_0 *hdr;
+docs/upstream/deep/smu_v11_0.c:113:	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
+docs/upstream/deep/smu_v11_0.c:114:	amdgpu_ucode_print_smc_hdr(&hdr->header);
+docs/upstream/deep/smu_v11_0.c:144:	const struct smc_firmware_header_v1_0 *hdr;
+docs/upstream/deep/smu_v11_0.c:147:	uint32_t smc_fw_size;
+docs/upstream/deep/smu_v11_0.c:150:	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
+docs/upstream/deep/smu_v11_0.c:153:	smc_fw_size = hdr->header.ucode_size_bytes;
+docs/upstream/deep/smu_v11_0.c:155:	for (i = 1; i < smc_fw_size/4 - 1; i++) {
+docs/upstream/deep/smu_v11_0.c:199:	const struct smc_firmware_header_v2_0 *v2;
+docs/upstream/deep/smu_v11_0.c:201:	v2 = (const struct smc_firmware_header_v2_0 *) adev->pm.fw->data;
+docs/upstream/deep/smu_v11_0.c:214:	const struct smc_firmware_header_v2_1 *v2_1;
+docs/upstream/deep/smu_v11_0.c:215:	struct smc_soft_pptable_entry *entries;
+docs/upstream/deep/smu_v11_0.c:219:	v2_1 = (const struct smc_firmware_header_v2_1 *) adev->pm.fw->data;
+docs/upstream/deep/smu_v11_0.c:220:	entries = (struct smc_soft_pptable_entry *)
+docs/upstream/deep/smu_v11_0.c:240:	const struct smc_firmware_header_v1_0 *hdr;
+docs/upstream/deep/smu_v11_0.c:249:		hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
+docs/upstream/deep/smu_v11_0.c:291:int smu_v11_0_init_smc_tables(struct smu_context *smu)
+docs/upstream/deep/smu_v11_0.c:350:int smu_v11_0_fini_smc_tables(struct smu_context *smu)
+docs/upstream/deep/smu_v11_0.c:565:	ret = smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:571:	ret = smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:582:	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrHigh,
+docs/upstream/deep/smu_v11_0.c:586:	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrLow,
+docs/upstream/deep/smu_v11_0.c:590:	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramSize,
+docs/upstream/deep/smu_v11_0.c:602:	ret = smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:616:		ret = smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:621:			ret = smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:636:		ret = smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:641:			ret = smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:664:	return smu_cmn_send_smc_msg_with_param(smu,
+docs/upstream/deep/smu_v11_0.c:685:	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskHigh,
+docs/upstream/deep/smu_v11_0.c:690:	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskLow,
+docs/upstream/deep/smu_v11_0.c:702:	return smu_cmn_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+docs/upstream/deep/smu_v11_0.c:712:		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1, NULL);
+docs/upstream/deep/smu_v11_0.c:734:	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
+docs/upstream/deep/smu_v11_0.c:745:	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
+=== SMU / DPM / GFXOFF ===
+docs/upstream/deep/amdgpu_discovery.c-166-	[DIO_HWID]		= "DIO",
+docs/upstream/deep/amdgpu_discovery.c-167-	[XDMA_HWID]		= "XDMA",
+docs/upstream/deep/amdgpu_discovery.c-168-	[DCEAZ_HWID]		= "DCEAZ",
+docs/upstream/deep/amdgpu_discovery.c-169-	[DAZ_HWID]		= "DAZ",
+docs/upstream/deep/amdgpu_discovery.c:170:	[SDPMUX_HWID]		= "SDPMUX",
+docs/upstream/deep/amdgpu_discovery.c-171-	[NTB_HWID]		= "NTB",
+docs/upstream/deep/amdgpu_discovery.c-172-	[IOHC_HWID]		= "IOHC",
+docs/upstream/deep/amdgpu_discovery.c-173-	[L2IMU_HWID]		= "L2IMU",
+docs/upstream/deep/amdgpu_discovery.c-174-	[VCE_HWID]		= "VCE",
+docs/upstream/deep/amdgpu_discovery.c-175-	[MMHUB_HWID]		= "MMHUB",
+docs/upstream/deep/amdgpu_discovery.c-176-	[ATHUB_HWID]		= "ATHUB",
+--
+docs/upstream/deep/amdgpu_discovery.c-2340-	case IP_VERSION(10, 0, 0):
+docs/upstream/deep/amdgpu_discovery.c-2341-	case IP_VERSION(10, 0, 1):
+docs/upstream/deep/amdgpu_discovery.c-2342-	case IP_VERSION(11, 0, 2):
+docs/upstream/deep/amdgpu_discovery.c-2343-		if (adev->asic_type == CHIP_ARCTURUS)
+docs/upstream/deep/amdgpu_discovery.c:2344:			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2345-		else
+docs/upstream/deep/amdgpu_discovery.c-2346-			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2347-		break;
+docs/upstream/deep/amdgpu_discovery.c-2348-	case IP_VERSION(11, 0, 0):
+docs/upstream/deep/amdgpu_discovery.c-2349-	case IP_VERSION(11, 0, 5):
+docs/upstream/deep/amdgpu_discovery.c-2350-	case IP_VERSION(11, 0, 9):
+--
+docs/upstream/deep/amdgpu_discovery.c-2353-	case IP_VERSION(11, 0, 12):
+docs/upstream/deep/amdgpu_discovery.c-2354-	case IP_VERSION(11, 0, 13):
+docs/upstream/deep/amdgpu_discovery.c-2355-	case IP_VERSION(11, 5, 0):
+docs/upstream/deep/amdgpu_discovery.c-2356-	case IP_VERSION(11, 5, 2):
+docs/upstream/deep/amdgpu_discovery.c:2357:		amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2358-		break;
+docs/upstream/deep/amdgpu_discovery.c-2359-	case IP_VERSION(11, 0, 8):
+docs/upstream/deep/amdgpu_discovery.c-2360-		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
+docs/upstream/deep/amdgpu_discovery.c:2361:			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2362-		break;
+docs/upstream/deep/amdgpu_discovery.c-2363-	case IP_VERSION(12, 0, 0):
+docs/upstream/deep/amdgpu_discovery.c-2364-	case IP_VERSION(12, 0, 1):
+docs/upstream/deep/amdgpu_discovery.c-2365-		amdgpu_device_ip_block_add(adev, &smu_v12_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2366-		break;
+docs/upstream/deep/amdgpu_discovery.c-2367-	case IP_VERSION(13, 0, 0):
+--
+docs/upstream/deep/amdgpu_gfx.c-834-				   bool no_delay)
+docs/upstream/deep/amdgpu_gfx.c-835-{
+docs/upstream/deep/amdgpu_gfx.c-836-	unsigned long delay = GFX_OFF_DELAY_ENABLE;
+docs/upstream/deep/amdgpu_gfx.c-837-
+docs/upstream/deep/amdgpu_gfx.c:838:	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+docs/upstream/deep/amdgpu_gfx.c-839-		return;
+docs/upstream/deep/amdgpu_gfx.c-840-
+docs/upstream/deep/amdgpu_gfx.c:841:	mutex_lock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-842-
+docs/upstream/deep/amdgpu_gfx.c-843-	if (enable) {
+docs/upstream/deep/amdgpu_gfx.c-844-		/* If the count is already 0, it means there's an imbalance bug somewhere.
+docs/upstream/deep/amdgpu_gfx.c-845-		 * Note that the bug may be in a different caller than the one which triggers the
+docs/upstream/deep/amdgpu_gfx.c-846-		 * WARN_ON_ONCE.
+docs/upstream/deep/amdgpu_gfx.c-847-		 */
+docs/upstream/deep/amdgpu_gfx.c:848:		if (WARN_ON_ONCE(adev->gfx.gfx_off_req_count == 0))
+docs/upstream/deep/amdgpu_gfx.c-849-			goto unlock;
+docs/upstream/deep/amdgpu_gfx.c-850-
+docs/upstream/deep/amdgpu_gfx.c:851:		adev->gfx.gfx_off_req_count--;
+docs/upstream/deep/amdgpu_gfx.c-852-
+docs/upstream/deep/amdgpu_gfx.c:853:		if (adev->gfx.gfx_off_req_count == 0 &&
+docs/upstream/deep/amdgpu_gfx.c:854:		    !adev->gfx.gfx_off_state) {
+docs/upstream/deep/amdgpu_gfx.c-855-			/* If going to s2idle, no need to wait */
+docs/upstream/deep/amdgpu_gfx.c-856-			if (no_delay) {
+docs/upstream/deep/amdgpu_gfx.c-857-				if (!amdgpu_dpm_set_powergating_by_smu(adev,
+docs/upstream/deep/amdgpu_gfx.c-858-						AMD_IP_BLOCK_TYPE_GFX, true, 0))
+docs/upstream/deep/amdgpu_gfx.c:859:					adev->gfx.gfx_off_state = true;
+docs/upstream/deep/amdgpu_gfx.c-860-			} else {
+docs/upstream/deep/amdgpu_gfx.c:861:				schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
+docs/upstream/deep/amdgpu_gfx.c-862-					      delay);
+docs/upstream/deep/amdgpu_gfx.c-863-			}
+docs/upstream/deep/amdgpu_gfx.c-864-		}
+docs/upstream/deep/amdgpu_gfx.c-865-	} else {
+docs/upstream/deep/amdgpu_gfx.c:866:		if (adev->gfx.gfx_off_req_count == 0) {
+docs/upstream/deep/amdgpu_gfx.c:867:			cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);
+docs/upstream/deep/amdgpu_gfx.c-868-
+docs/upstream/deep/amdgpu_gfx.c:869:			if (adev->gfx.gfx_off_state &&
+docs/upstream/deep/amdgpu_gfx.c-870-			    !amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false, 0)) {
+docs/upstream/deep/amdgpu_gfx.c:871:				adev->gfx.gfx_off_state = false;
+docs/upstream/deep/amdgpu_gfx.c-872-
+docs/upstream/deep/amdgpu_gfx.c-873-				if (adev->gfx.funcs->init_spm_golden) {
+docs/upstream/deep/amdgpu_gfx.c-874-					dev_dbg(adev->dev,
+docs/upstream/deep/amdgpu_gfx.c:875:						"GFXOFF is disabled, re-init SPM golden settings\n");
+docs/upstream/deep/amdgpu_gfx.c-876-					amdgpu_gfx_init_spm_golden(adev);
+docs/upstream/deep/amdgpu_gfx.c-877-				}
+docs/upstream/deep/amdgpu_gfx.c-878-			}
+docs/upstream/deep/amdgpu_gfx.c-879-		}
+docs/upstream/deep/amdgpu_gfx.c-880-
+docs/upstream/deep/amdgpu_gfx.c:881:		adev->gfx.gfx_off_req_count++;
+docs/upstream/deep/amdgpu_gfx.c-882-	}
+docs/upstream/deep/amdgpu_gfx.c-883-
+docs/upstream/deep/amdgpu_gfx.c-884-unlock:
+docs/upstream/deep/amdgpu_gfx.c:885:	mutex_unlock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-886-}
+docs/upstream/deep/amdgpu_gfx.c-887-
+docs/upstream/deep/amdgpu_gfx.c:888:/* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
+docs/upstream/deep/amdgpu_gfx.c-889- *
+docs/upstream/deep/amdgpu_gfx.c-890- * @adev: amdgpu_device pointer
+docs/upstream/deep/amdgpu_gfx.c-891- * @bool enable true: enable gfx off feature, false: disable gfx off feature
+docs/upstream/deep/amdgpu_gfx.c-892- *
+docs/upstream/deep/amdgpu_gfx.c-893- * 1. gfx off feature will be enabled by gfx ip after gfx cg pg enabled.
+docs/upstream/deep/amdgpu_gfx.c-894- * 2. other client can send request to disable gfx off feature, the request should be honored.
+--
+docs/upstream/deep/amdgpu_gfx.c-896- * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+docs/upstream/deep/amdgpu_gfx.c-897- *
+docs/upstream/deep/amdgpu_gfx.c-898- * gfx off allow will be delayed by GFX_OFF_DELAY_ENABLE ms.
+docs/upstream/deep/amdgpu_gfx.c-899- */
+docs/upstream/deep/amdgpu_gfx.c:900:void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
+docs/upstream/deep/amdgpu_gfx.c-901-{
+docs/upstream/deep/amdgpu_gfx.c-902-	/* If going to s2idle, no need to wait */
+docs/upstream/deep/amdgpu_gfx.c-903-	bool no_delay = adev->in_s0ix ? true : false;
+docs/upstream/deep/amdgpu_gfx.c-904-
+docs/upstream/deep/amdgpu_gfx.c-905-	amdgpu_gfx_do_off_ctrl(adev, enable, no_delay);
+docs/upstream/deep/amdgpu_gfx.c-906-}
+docs/upstream/deep/amdgpu_gfx.c-907-
+docs/upstream/deep/amdgpu_gfx.c:908:/* amdgpu_gfx_off_ctrl_immediate - Handle gfx off feature enable/disable
+docs/upstream/deep/amdgpu_gfx.c-909- *
+docs/upstream/deep/amdgpu_gfx.c-910- * @adev: amdgpu_device pointer
+docs/upstream/deep/amdgpu_gfx.c-911- * @bool enable true: enable gfx off feature, false: disable gfx off feature
+docs/upstream/deep/amdgpu_gfx.c-912- *
+docs/upstream/deep/amdgpu_gfx.c-913- * 1. gfx off feature will be enabled by gfx ip after gfx cg pg enabled.
+docs/upstream/deep/amdgpu_gfx.c-914- * 2. other client can send request to disable gfx off feature, the request should be honored.
+--
+docs/upstream/deep/amdgpu_gfx.c-916- * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+docs/upstream/deep/amdgpu_gfx.c-917- *
+docs/upstream/deep/amdgpu_gfx.c-918- * gfx off allow will be issued immediately.
+docs/upstream/deep/amdgpu_gfx.c-919- */
+docs/upstream/deep/amdgpu_gfx.c:920:void amdgpu_gfx_off_ctrl_immediate(struct amdgpu_device *adev, bool enable)
+docs/upstream/deep/amdgpu_gfx.c-921-{
+docs/upstream/deep/amdgpu_gfx.c-922-	amdgpu_gfx_do_off_ctrl(adev, enable, true);
+docs/upstream/deep/amdgpu_gfx.c-923-}
+docs/upstream/deep/amdgpu_gfx.c-924-
+docs/upstream/deep/amdgpu_gfx.c:925:int amdgpu_set_gfx_off_residency(struct amdgpu_device *adev, bool value)
+docs/upstream/deep/amdgpu_gfx.c-926-{
+docs/upstream/deep/amdgpu_gfx.c-927-	int r = 0;
+docs/upstream/deep/amdgpu_gfx.c-928-
+docs/upstream/deep/amdgpu_gfx.c:929:	mutex_lock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-930-
+docs/upstream/deep/amdgpu_gfx.c-931-	r = amdgpu_dpm_set_residency_gfxoff(adev, value);
+docs/upstream/deep/amdgpu_gfx.c-932-
+docs/upstream/deep/amdgpu_gfx.c:933:	mutex_unlock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-934-
+docs/upstream/deep/amdgpu_gfx.c-935-	return r;
+docs/upstream/deep/amdgpu_gfx.c-936-}
+docs/upstream/deep/amdgpu_gfx.c-937-
+docs/upstream/deep/amdgpu_gfx.c:938:int amdgpu_get_gfx_off_residency(struct amdgpu_device *adev, u32 *value)
+docs/upstream/deep/amdgpu_gfx.c-939-{
+docs/upstream/deep/amdgpu_gfx.c-940-	int r = 0;
+docs/upstream/deep/amdgpu_gfx.c-941-
+docs/upstream/deep/amdgpu_gfx.c:942:	mutex_lock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-943-
+docs/upstream/deep/amdgpu_gfx.c-944-	r = amdgpu_dpm_get_residency_gfxoff(adev, value);
+docs/upstream/deep/amdgpu_gfx.c-945-
+docs/upstream/deep/amdgpu_gfx.c:946:	mutex_unlock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-947-
+docs/upstream/deep/amdgpu_gfx.c-948-	return r;
+docs/upstream/deep/amdgpu_gfx.c-949-}
+docs/upstream/deep/amdgpu_gfx.c-950-
+docs/upstream/deep/amdgpu_gfx.c:951:int amdgpu_get_gfx_off_entrycount(struct amdgpu_device *adev, u64 *value)
+docs/upstream/deep/amdgpu_gfx.c-952-{
+docs/upstream/deep/amdgpu_gfx.c-953-	int r = 0;
+docs/upstream/deep/amdgpu_gfx.c-954-
+docs/upstream/deep/amdgpu_gfx.c:955:	mutex_lock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-956-
+docs/upstream/deep/amdgpu_gfx.c-957-	r = amdgpu_dpm_get_entrycount_gfxoff(adev, value);
+docs/upstream/deep/amdgpu_gfx.c-958-
+docs/upstream/deep/amdgpu_gfx.c:959:	mutex_unlock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-960-
+docs/upstream/deep/amdgpu_gfx.c-961-	return r;
+docs/upstream/deep/amdgpu_gfx.c-962-}
+docs/upstream/deep/amdgpu_gfx.c-963-
+docs/upstream/deep/amdgpu_gfx.c:964:int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
+docs/upstream/deep/amdgpu_gfx.c-965-{
+docs/upstream/deep/amdgpu_gfx.c-966-
+docs/upstream/deep/amdgpu_gfx.c-967-	int r = 0;
+docs/upstream/deep/amdgpu_gfx.c-968-
+docs/upstream/deep/amdgpu_gfx.c:969:	mutex_lock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-970-
+docs/upstream/deep/amdgpu_gfx.c-971-	r = amdgpu_dpm_get_status_gfxoff(adev, value);
+docs/upstream/deep/amdgpu_gfx.c-972-
+docs/upstream/deep/amdgpu_gfx.c:973:	mutex_unlock(&adev->gfx.gfx_off_mutex);
+docs/upstream/deep/amdgpu_gfx.c-974-
+docs/upstream/deep/amdgpu_gfx.c-975-	return r;
+docs/upstream/deep/amdgpu_gfx.c-976-}
+docs/upstream/deep/amdgpu_gfx.c-977-
+docs/upstream/deep/amdgpu_gfx.c-978-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
+docs/upstream/deep/amdgpu_gfx.c-979-{
+--
+docs/upstream/deep/gmc_v10_0.c-251-
+docs/upstream/deep/gmc_v10_0.c-252-	/* flush hdp cache */
+docs/upstream/deep/gmc_v10_0.c-253-	amdgpu_device_flush_hdp(adev, NULL);
+docs/upstream/deep/gmc_v10_0.c-254-
+docs/upstream/deep/gmc_v10_0.c:255:	/* This is necessary for SRIOV as well as for GFXOFF to function
+docs/upstream/deep/gmc_v10_0.c-256-	 * properly under bare metal
+docs/upstream/deep/gmc_v10_0.c-257-	 */
+docs/upstream/deep/gmc_v10_0.c-258-	if (adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes &&
+docs/upstream/deep/gmc_v10_0.c-259-	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
+docs/upstream/deep/gmc_v10_0.c-260-		amdgpu_gmc_fw_reg_write_reg_wait(adev, req, ack, inv_req,
+docs/upstream/deep/gmc_v10_0.c-261-						 1 << vmid, GET_INST(GC, 0));
+docs/upstream/deep/gmc_v10_0.c-262-		return;
+docs/upstream/deep/gmc_v10_0.c-263-	}
+docs/upstream/deep/gmc_v10_0.c-264-
+docs/upstream/deep/gmc_v10_0.c:265:	/* This path is needed before KIQ/MES/GFXOFF are set up */
+docs/upstream/deep/gmc_v10_0.c-266-	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ? GC_HWIP : MMHUB_HWIP;
+docs/upstream/deep/gmc_v10_0.c-267-
+docs/upstream/deep/gmc_v10_0.c-268-	spin_lock(&adev->gmc.invalidate_lock);
+docs/upstream/deep/gmc_v10_0.c-269-	/*
+docs/upstream/deep/gmc_v10_0.c-270-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+docs/upstream/deep/gmc_v10_0.c-271-	 * off cycle, add semaphore acquire before invalidation and semaphore
+--
+docs/upstream/deep/cyan_skillfish_ppt.c-24-#define SWSMU_CODE_LAYER_L2
+docs/upstream/deep/cyan_skillfish_ppt.c-25-
+docs/upstream/deep/cyan_skillfish_ppt.c-26-#include "amdgpu.h"
+docs/upstream/deep/cyan_skillfish_ppt.c-27-#include "amdgpu_smu.h"
+docs/upstream/deep/cyan_skillfish_ppt.c:28:#include "smu_v11_0.h"
+docs/upstream/deep/cyan_skillfish_ppt.c-29-#include "smu11_driver_if_cyan_skillfish.h"
+docs/upstream/deep/cyan_skillfish_ppt.c:30:#include "cyan_skillfish_ppt.h"
+docs/upstream/deep/cyan_skillfish_ppt.c-31-#include "smu_v11_8_ppsmc.h"
+docs/upstream/deep/cyan_skillfish_ppt.c-32-#include "smu_v11_8_pmfw.h"
+docs/upstream/deep/cyan_skillfish_ppt.c-33-#include "smu_cmn.h"
+docs/upstream/deep/cyan_skillfish_ppt.c-34-#include "soc15_common.h"
+docs/upstream/deep/cyan_skillfish_ppt.c-35-
+docs/upstream/deep/cyan_skillfish_ppt.c-36-/*
+--
+docs/upstream/deep/cyan_skillfish_ppt.c-61-static uint32_t cyan_skillfish_sclk_default;
+docs/upstream/deep/cyan_skillfish_ppt.c-62-
+docs/upstream/deep/cyan_skillfish_ppt.c-63-static const struct smu_feature_bits cyan_skillfish_dpm_features = {
+docs/upstream/deep/cyan_skillfish_ppt.c-64-	.bits = {
+docs/upstream/deep/cyan_skillfish_ppt.c:65:		SMU_FEATURE_BIT_INIT(FEATURE_FCLK_DPM_BIT),
+docs/upstream/deep/cyan_skillfish_ppt.c:66:		SMU_FEATURE_BIT_INIT(FEATURE_SOC_DPM_BIT),
+docs/upstream/deep/cyan_skillfish_ppt.c:67:		SMU_FEATURE_BIT_INIT(FEATURE_GFX_DPM_BIT)
+docs/upstream/deep/cyan_skillfish_ppt.c-68-	}
+docs/upstream/deep/cyan_skillfish_ppt.c-69-};
+docs/upstream/deep/cyan_skillfish_ppt.c-70-
+docs/upstream/deep/cyan_skillfish_ppt.c-71-static struct cmn2asic_msg_mapping cyan_skillfish_message_map[SMU_MSG_MAX_COUNT] = {
+docs/upstream/deep/cyan_skillfish_ppt.c-72-	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			0),
+docs/upstream/deep/cyan_skillfish_ppt.c-73-	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,		0),
+docs/upstream/deep/cyan_skillfish_ppt.c-74-	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,		0),
+docs/upstream/deep/cyan_skillfish_ppt.c:75:	MSG_MAP(SetDriverDramAddrHigh,          PPSMC_MSG_SetDriverTableDramAddrHigh,	0),
+docs/upstream/deep/cyan_skillfish_ppt.c:76:	MSG_MAP(SetDriverDramAddrLow,           PPSMC_MSG_SetDriverTableDramAddrLow,	0),
+docs/upstream/deep/cyan_skillfish_ppt.c-77-	MSG_MAP(TransferTableSmu2Dram,          PPSMC_MSG_TransferTableSmu2Dram,	0),
+docs/upstream/deep/cyan_skillfish_ppt.c-78-	MSG_MAP(TransferTableDram2Smu,          PPSMC_MSG_TransferTableDram2Smu,	0),
+docs/upstream/deep/cyan_skillfish_ppt.c-79-	MSG_MAP(GetEnabledSmuFeatures,          PPSMC_MSG_GetEnabledSmuFeatures,	0),
+docs/upstream/deep/cyan_skillfish_ppt.c:80:	MSG_MAP(RequestGfxclk,                  PPSMC_MSG_RequestGfxclk,		0),
+docs/upstream/deep/cyan_skillfish_ppt.c-81-	MSG_MAP(ForceGfxVid,                    PPSMC_MSG_ForceGfxVid,			0),
+docs/upstream/deep/cyan_skillfish_ppt.c-82-	MSG_MAP(UnforceGfxVid,                  PPSMC_MSG_UnforceGfxVid,		0),
+docs/upstream/deep/cyan_skillfish_ppt.c-83-};
+docs/upstream/deep/cyan_skillfish_ppt.c-84-
+docs/upstream/deep/cyan_skillfish_ppt.c-85-static struct cmn2asic_mapping cyan_skillfish_table_map[SMU_TABLE_COUNT] = {
+docs/upstream/deep/cyan_skillfish_ppt.c-86-	TAB_MAP_VALID(SMU_METRICS),
+--
+docs/upstream/deep/cyan_skillfish_ppt.c-116-err0_out:
+docs/upstream/deep/cyan_skillfish_ppt.c-117-	return -ENOMEM;
+docs/upstream/deep/cyan_skillfish_ppt.c-118-}
+docs/upstream/deep/cyan_skillfish_ppt.c-119-
+docs/upstream/deep/cyan_skillfish_ppt.c:120:static int cyan_skillfish_init_smc_tables(struct smu_context *smu)
+docs/upstream/deep/cyan_skillfish_ppt.c-121-{
+docs/upstream/deep/cyan_skillfish_ppt.c-122-	int ret = 0;
+docs/upstream/deep/cyan_skillfish_ppt.c-123-
+docs/upstream/deep/cyan_skillfish_ppt.c-124-	ret = cyan_skillfish_tables_init(smu);
+docs/upstream/deep/cyan_skillfish_ppt.c-125-	if (ret)
+docs/upstream/deep/cyan_skillfish_ppt.c-126-		return ret;
+docs/upstream/deep/cyan_skillfish_ppt.c-127-
+docs/upstream/deep/cyan_skillfish_ppt.c:128:	return smu_v11_0_init_smc_tables(smu);
+docs/upstream/deep/cyan_skillfish_ppt.c-129-}
+docs/upstream/deep/cyan_skillfish_ppt.c-130-
+docs/upstream/deep/cyan_skillfish_ppt.c-131-static int
+docs/upstream/deep/cyan_skillfish_ppt.c-132-cyan_skillfish_get_smu_metrics_data(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c-133-					MetricsMember_t member,
+docs/upstream/deep/cyan_skillfish_ppt.c-134-					uint32_t *value)
+--
+docs/upstream/deep/cyan_skillfish_ppt.c-439-	return sizeof(struct gpu_metrics_v2_2);
+docs/upstream/deep/cyan_skillfish_ppt.c-440-}
+docs/upstream/deep/cyan_skillfish_ppt.c-441-
+docs/upstream/deep/cyan_skillfish_ppt.c-442-static int cyan_skillfish_od_edit_dpm_table(struct smu_context *smu,
+docs/upstream/deep/cyan_skillfish_ppt.c:443:					enum PP_OD_DPM_TABLE_COMMAND type,
+docs/upstream/deep/cyan_skillfish_ppt.c-444-					long input[], uint32_t size)
+docs/upstream/deep/cyan_skillfish_ppt.c-445-{
+docs/upstream/deep/cyan_skillfish_ppt.c-446-	int ret = 0;
+docs/upstream/deep/cyan_skillfish_ppt.c-447-	uint32_t vid;
+docs/upstream/deep/cyan_skillfish_ppt.c-448-
+docs/upstream/deep/cyan_skillfish_ppt.c-449-	switch (type) {
+--
+docs/upstream/deep/cyan_skillfish_ppt.c-480-		cyan_skillfish_user_settings.sclk = cyan_skillfish_sclk_default;
+docs/upstream/deep/cyan_skillfish_ppt.c-481-		cyan_skillfish_user_settings.vddc = CYAN_SKILLFISH_VDDC_MAGIC;
+docs/upstream/deep/cyan_skillfish_ppt.c-482-
+docs/upstream/deep/cyan_skillfish_ppt.c-483-		break;
+docs/upstream/deep/cyan_skillfish_ppt.c:484:	case PP_OD_COMMIT_DPM_TABLE:
+docs/upstream/deep/cyan_skillfish_ppt.c-485-		if (size != 0) {
+docs/upstream/deep/cyan_skillfish_ppt.c-486-			dev_err(smu->adev->dev, "Invalid parameter!\n");
+docs/upstream/deep/cyan_skillfish_ppt.c-487-			return -EINVAL;
+docs/upstream/deep/cyan_skillfish_ppt.c-488-		}
+docs/upstream/deep/cyan_skillfish_ppt.c-489-
+docs/upstream/deep/cyan_skillfish_ppt.c-490-		if (cyan_skillfish_user_settings.sclk < CYAN_SKILLFISH_SCLK_MIN ||
+--
+docs/upstream/deep/cyan_skillfish_ppt.c-501-					CYAN_SKILLFISH_VDDC_MIN, CYAN_SKILLFISH_VDDC_MAX);
+docs/upstream/deep/cyan_skillfish_ppt.c-502-			return -EINVAL;
+docs/upstream/deep/cyan_skillfish_ppt.c-503-		}
+docs/upstream/deep/cyan_skillfish_ppt.c-504-
+docs/upstream/deep/cyan_skillfish_ppt.c:505:		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RequestGfxclk,
+docs/upstream/deep/cyan_skillfish_ppt.c-506-					cyan_skillfish_user_settings.sclk, NULL);
+docs/upstream/deep/cyan_skillfish_ppt.c-507-		if (ret) {
+docs/upstream/deep/cyan_skillfish_ppt.c-508-			dev_err(smu->adev->dev, "Set sclk failed!\n");
+docs/upstream/deep/cyan_skillfish_ppt.c-509-			return ret;
+docs/upstream/deep/cyan_skillfish_ppt.c-510-		}
+docs/upstream/deep/cyan_skillfish_ppt.c-511-
+--
+docs/upstream/deep/cyan_skillfish_ppt.c-576-
+docs/upstream/deep/cyan_skillfish_ppt.c-577-	return 0;
+docs/upstream/deep/cyan_skillfish_ppt.c-578-}
+docs/upstream/deep/cyan_skillfish_ppt.c-579-
+docs/upstream/deep/cyan_skillfish_ppt.c:580:static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
+docs/upstream/deep/cyan_skillfish_ppt.c-581-
+docs/upstream/deep/cyan_skillfish_ppt.c:582:	.check_fw_status = smu_v11_0_check_fw_status,
+docs/upstream/deep/cyan_skillfish_ppt.c-583-	.check_fw_version = smu_cmn_check_fw_version,
+docs/upstream/deep/cyan_skillfish_ppt.c:584:	.init_power = smu_v11_0_init_power,
+docs/upstream/deep/cyan_skillfish_ppt.c:585:	.fini_power = smu_v11_0_fini_power,
+docs/upstream/deep/cyan_skillfish_ppt.c:586:	.init_smc_tables = cyan_skillfish_init_smc_tables,
+docs/upstream/deep/cyan_skillfish_ppt.c:587:	.fini_smc_tables = smu_v11_0_fini_smc_tables,
+docs/upstream/deep/cyan_skillfish_ppt.c-588-	.read_sensor = cyan_skillfish_read_sensor,
+docs/upstream/deep/cyan_skillfish_ppt.c-589-	.emit_clk_levels = cyan_skillfish_emit_clk_levels,
+docs/upstream/deep/cyan_skillfish_ppt.c-590-	.get_enabled_mask = cyan_skillfish_get_enabled_mask,
+docs/upstream/deep/cyan_skillfish_ppt.c-591-	.is_dpm_running = cyan_skillfish_is_dpm_running,
+docs/upstream/deep/cyan_skillfish_ppt.c-592-	.get_gpu_metrics = cyan_skillfish_get_gpu_metrics,
+docs/upstream/deep/cyan_skillfish_ppt.c-593-	.od_edit_dpm_table = cyan_skillfish_od_edit_dpm_table,
+docs/upstream/deep/cyan_skillfish_ppt.c-594-	.get_dpm_ultimate_freq = cyan_skillfish_get_dpm_ultimate_freq,
+docs/upstream/deep/cyan_skillfish_ppt.c:595:	.register_irq_handler = smu_v11_0_register_irq_handler,
+docs/upstream/deep/cyan_skillfish_ppt.c:596:	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+docs/upstream/deep/cyan_skillfish_ppt.c:597:	.set_driver_table_location = smu_v11_0_set_driver_table_location,
+docs/upstream/deep/cyan_skillfish_ppt.c:598:	.interrupt_work = smu_v11_0_interrupt_work,
+docs/upstream/deep/cyan_skillfish_ppt.c-599-};
+docs/upstream/deep/cyan_skillfish_ppt.c-600-
+docs/upstream/deep/cyan_skillfish_ppt.c:601:void cyan_skillfish_set_ppt_funcs(struct smu_context *smu)
+docs/upstream/deep/cyan_skillfish_ppt.c-602-{
+docs/upstream/deep/cyan_skillfish_ppt.c:603:	smu->ppt_funcs = &cyan_skillfish_ppt_funcs;
+docs/upstream/deep/cyan_skillfish_ppt.c-604-	smu->table_map = cyan_skillfish_table_map;
+docs/upstream/deep/cyan_skillfish_ppt.c-605-	smu->is_apu = true;
+docs/upstream/deep/cyan_skillfish_ppt.c-606-	smu->smc_driver_if_version = MP1_DRIVER_IF_VERSION;
+docs/upstream/deep/cyan_skillfish_ppt.c:607:	smu_v11_0_init_msg_ctl(smu, cyan_skillfish_message_map);
+docs/upstream/deep/cyan_skillfish_ppt.c-608-}
+--
+docs/upstream/deep/cyan_skillfish_ppt.h-23-
+docs/upstream/deep/cyan_skillfish_ppt.h-24-#ifndef __CYAN_SKILLFISH_PPT_H__
+docs/upstream/deep/cyan_skillfish_ppt.h-25-#define __CYAN_SKILLFISH_PPT_H__
+docs/upstream/deep/cyan_skillfish_ppt.h-26-
+docs/upstream/deep/cyan_skillfish_ppt.h:27:extern void cyan_skillfish_set_ppt_funcs(struct smu_context *smu);
+docs/upstream/deep/cyan_skillfish_ppt.h-28-
+docs/upstream/deep/cyan_skillfish_ppt.h-29-#endif
+--
+docs/upstream/deep/smu_v11_0.c-32-#include "amdgpu_smu.h"
+docs/upstream/deep/smu_v11_0.c-33-#include "atomfirmware.h"
+docs/upstream/deep/smu_v11_0.c-34-#include "amdgpu_atomfirmware.h"
+docs/upstream/deep/smu_v11_0.c-35-#include "amdgpu_atombios.h"
+docs/upstream/deep/smu_v11_0.c:36:#include "smu_v11_0.h"
+docs/upstream/deep/smu_v11_0.c-37-#include "soc15_common.h"
+docs/upstream/deep/smu_v11_0.c-38-#include "atom.h"
+docs/upstream/deep/smu_v11_0.c-39-#include "amdgpu_ras.h"
+docs/upstream/deep/smu_v11_0.c-40-#include "smu_cmn.h"
+docs/upstream/deep/smu_v11_0.c-41-
+docs/upstream/deep/smu_v11_0.c-42-#include "asic_reg/thm/thm_11_0_2_offset.h"
+--
+docs/upstream/deep/smu_v11_0.c-78-
+docs/upstream/deep/smu_v11_0.c-79-#define mmTHM_BACO_CNTL_ARCT			0xA7
+docs/upstream/deep/smu_v11_0.c-80-#define mmTHM_BACO_CNTL_ARCT_BASE_IDX		0
+docs/upstream/deep/smu_v11_0.c-81-
+docs/upstream/deep/smu_v11_0.c:82:static void smu_v11_0_poll_baco_exit(struct smu_context *smu)
+docs/upstream/deep/smu_v11_0.c-83-{
+docs/upstream/deep/smu_v11_0.c-84-	struct amdgpu_device *adev = smu->adev;
+docs/upstream/deep/smu_v11_0.c-85-	uint32_t data, loop = 0;
+docs/upstream/deep/smu_v11_0.c-86-
+docs/upstream/deep/smu_v11_0.c-87-	do {
+docs/upstream/deep/smu_v11_0.c-88-		usleep_range(1000, 1100);
+docs/upstream/deep/smu_v11_0.c-89-		data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
+docs/upstream/deep/smu_v11_0.c-90-	} while ((data & 0x100) && (++loop < 100));
+docs/upstream/deep/smu_v11_0.c-91-}
+docs/upstream/deep/smu_v11_0.c-92-
+docs/upstream/deep/smu_v11_0.c:93:int smu_v11_0_init_microcode(struct smu_context *smu)
+docs/upstream/deep/smu_v11_0.c-94-{
+docs/upstream/deep/smu_v11_0.c-95-	struct amdgpu_device *adev = smu->adev;
+docs/upstream/deep/smu_v11_0.c-96-	char ucode_prefix[25];
+docs/upstream/deep/smu_v11_0.c-97-	int err = 0;
+docs/upstream/deep/smu_v11_0.c-98-	const struct smc_firmware_header_v1_0 *hdr;
+docs/upstream/deep/smu_v11_0.c-99-	const struct common_firmware_header *header;
+--
+docs/upstream/deep/smu_v11_0.c-128-		amdgpu_ucode_release(&adev->pm.fw);
+docs/upstream/deep/smu_v11_0.c-129-	return err;
+docs/upstream/deep/smu_v11_0.c-130-}
+docs/upstream/deep/smu_v11_0.c-131-
+docs/upstream/deep/smu_v11_0.c:132:void smu_v11_0_fini_microcode(struct smu_context *smu)
+docs/upstream/deep/smu_v11_0.c-133-{
+docs/upstream/deep/smu_v11_0.c-134-	struct amdgpu_device *adev = smu->adev;
+docs/upstream/deep/smu_v11_0.c-135-
+docs/upstream/deep/smu_v11_0.c-136-	amdgpu_ucode_release(&adev->pm.fw);
+docs/upstream/deep/smu_v11_0.c-137-	adev->pm.fw_version = 0;
+docs/upstream/deep/smu_v11_0.c-138-}
+docs/upstream/deep/smu_v11_0.c-139-
+docs/upstream/deep/smu_v11_0.c:140:int smu_v11_0_load_microcode(struct smu_context *smu)
+docs/upstream/deep/smu_v11_0.c-141-{
+docs/upstream/deep/smu_v11_0.c-142-	struct amdgpu_device *adev = smu->adev;
+docs/upstream/deep/smu_v11_0.c-143-	const uint32_t *src;
+docs/upstream/deep/smu_v11_0.c-144-	const struct smc_firmware_header_v1_0 *hdr;
+docs/upstream/deep/smu_v11_0.c-145-	uint32_t addr_start = MP1_SRAM;
+docs/upstream/deep/smu_v11_0.c-146-	uint32_t i;
+--
+docs/upstream/deep/smu_v11_0.c-176-
+docs/upstream/deep/smu_v11_0.c-177-	return 0;
+docs/upstream/deep/smu_v11_0.c-178-}
+docs/upstream/deep/smu_v11_0.c-179-
+docs/upstream/deep/smu_v11_0.c:180:int smu_v11_0_check_fw_status(struct smu_context *smu)
+docs/upstream/deep/smu_v11_0.c-181-{
+docs/upstream/deep/smu_v11_0.c-182-	struct amdgpu_device *adev = smu->adev;
+docs/upstream/deep/smu_v11_0.c-183-	uint32_t mp1_fw_flags;
+docs/upstream/deep/smu_v11_0.c-184-
+docs/upstream/deep/smu_v11_0.c-185-	mp1_fw_flags = RREG32_PCIE(MP1_Public |
+docs/upstream/deep/smu_v11_0.c-186-				   (smnMP1_FIRMWARE_FLAGS & 0xffffffff));
+--
+docs/upstream/deep/smu_v11_0.c-191-
+docs/upstream/deep/smu_v11_0.c-192-	return -EIO;
+docs/upstream/deep/smu_v11_0.c-193-}
+docs/upstream/deep/smu_v11_0.c-194-
+docs/upstream/deep/smu_v11_0.c:195:static int smu_v11_0_set_pptable_v2_0(struct smu_context *smu, void **table, uint32_t *size)
+=== VM / PAGE TABLE / INVALIDATE ===
+docs/upstream/deep/amdgpu_discovery.c-53-#include "vcn_v1_0.h"
+docs/upstream/deep/amdgpu_discovery.c-54-#include "vcn_v2_5.h"
+docs/upstream/deep/amdgpu_discovery.c-55-#include "jpeg_v2_5.h"
+docs/upstream/deep/amdgpu_discovery.c-56-#include "smuio_v9_0.h"
+docs/upstream/deep/amdgpu_discovery.c:57:#include "gmc_v10_0.h"
+docs/upstream/deep/amdgpu_discovery.c-58-#include "gmc_v11_0.h"
+docs/upstream/deep/amdgpu_discovery.c-59-#include "gmc_v12_0.h"
+docs/upstream/deep/amdgpu_discovery.c-60-#include "gfxhub_v2_0.h"
+docs/upstream/deep/amdgpu_discovery.c-61-#include "mmhub_v2_0.h"
+--
+docs/upstream/deep/amdgpu_discovery.c-2181-	case IP_VERSION(10, 3, 4):
+docs/upstream/deep/amdgpu_discovery.c-2182-	case IP_VERSION(10, 3, 5):
+docs/upstream/deep/amdgpu_discovery.c-2183-	case IP_VERSION(10, 3, 6):
+docs/upstream/deep/amdgpu_discovery.c-2184-	case IP_VERSION(10, 3, 7):
+docs/upstream/deep/amdgpu_discovery.c:2185:		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2186-		break;
+docs/upstream/deep/amdgpu_discovery.c-2187-	case IP_VERSION(11, 0, 0):
+docs/upstream/deep/amdgpu_discovery.c-2188-	case IP_VERSION(11, 0, 1):
+docs/upstream/deep/amdgpu_discovery.c-2189-	case IP_VERSION(11, 0, 2):
+--
+docs/upstream/deep/gmc_v10_0.c-26-#include <drm/drm_cache.h>
+docs/upstream/deep/gmc_v10_0.c-27-
+docs/upstream/deep/gmc_v10_0.c-28-#include "amdgpu.h"
+docs/upstream/deep/gmc_v10_0.c-29-#include "amdgpu_atomfirmware.h"
+docs/upstream/deep/gmc_v10_0.c:30:#include "gmc_v10_0.h"
+docs/upstream/deep/gmc_v10_0.c-31-#include "umc_v8_7.h"
+docs/upstream/deep/gmc_v10_0.c-32-
+docs/upstream/deep/gmc_v10_0.c-33-#include "athub/athub_2_0_0_sh_mask.h"
+docs/upstream/deep/gmc_v10_0.c-34-#include "athub/athub_2_0_0_offset.h"
+--
+docs/upstream/deep/gmc_v10_0.c-50-#include "mmhub_v2_3.h"
+docs/upstream/deep/gmc_v10_0.c-51-#include "athub_v2_0.h"
+docs/upstream/deep/gmc_v10_0.c-52-#include "athub_v2_1.h"
+docs/upstream/deep/gmc_v10_0.c-53-
+docs/upstream/deep/gmc_v10_0.c:54:static int gmc_v10_0_ecc_interrupt_state(struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c-55-					 struct amdgpu_irq_src *src,
+docs/upstream/deep/gmc_v10_0.c-56-					 unsigned int type,
+docs/upstream/deep/gmc_v10_0.c-57-					 enum amdgpu_interrupt_state state)
+docs/upstream/deep/gmc_v10_0.c-58-{
+docs/upstream/deep/gmc_v10_0.c-59-	return 0;
+docs/upstream/deep/gmc_v10_0.c-60-}
+docs/upstream/deep/gmc_v10_0.c-61-
+docs/upstream/deep/gmc_v10_0.c-62-static int
+docs/upstream/deep/gmc_v10_0.c:63:gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c-64-				   struct amdgpu_irq_src *src, unsigned int type,
+docs/upstream/deep/gmc_v10_0.c-65-				   enum amdgpu_interrupt_state state)
+docs/upstream/deep/gmc_v10_0.c-66-{
+docs/upstream/deep/gmc_v10_0.c-67-	switch (state) {
+--
+docs/upstream/deep/gmc_v10_0.c-95-
+docs/upstream/deep/gmc_v10_0.c-96-	return 0;
+docs/upstream/deep/gmc_v10_0.c-97-}
+docs/upstream/deep/gmc_v10_0.c-98-
+docs/upstream/deep/gmc_v10_0.c:99:static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c-100-				       struct amdgpu_irq_src *source,
+docs/upstream/deep/gmc_v10_0.c-101-				       struct amdgpu_iv_entry *entry)
+docs/upstream/deep/gmc_v10_0.c-102-{
+docs/upstream/deep/gmc_v10_0.c:103:	uint32_t vmhub_index = entry->client_id == SOC15_IH_CLIENTID_VMC ?
+docs/upstream/deep/gmc_v10_0.c-104-			       AMDGPU_MMHUB0(0) : AMDGPU_GFXHUB(0);
+docs/upstream/deep/gmc_v10_0.c:105:	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub_index];
+docs/upstream/deep/gmc_v10_0.c-106-	bool retry_fault = !!(entry->src_data[1] &
+docs/upstream/deep/gmc_v10_0.c-107-			      AMDGPU_GMC9_FAULT_SOURCE_DATA_RETRY);
+docs/upstream/deep/gmc_v10_0.c-108-	bool write_fault = !!(entry->src_data[1] &
+docs/upstream/deep/gmc_v10_0.c-109-			      AMDGPU_GMC9_FAULT_SOURCE_DATA_WRITE);
+--
+docs/upstream/deep/gmc_v10_0.c-160-	/* Only print L2 fault status if the status register could be read and
+docs/upstream/deep/gmc_v10_0.c-161-	 * contains useful information
+docs/upstream/deep/gmc_v10_0.c-162-	 */
+docs/upstream/deep/gmc_v10_0.c-163-	if (status != 0)
+docs/upstream/deep/gmc_v10_0.c:164:		hub->vmhub_funcs->print_l2_protection_fault_status(adev,
+docs/upstream/deep/gmc_v10_0.c-165-								   status);
+docs/upstream/deep/gmc_v10_0.c-166-
+docs/upstream/deep/gmc_v10_0.c-167-	return 0;
+docs/upstream/deep/gmc_v10_0.c-168-}
+docs/upstream/deep/gmc_v10_0.c-169-
+docs/upstream/deep/gmc_v10_0.c:170:static const struct amdgpu_irq_src_funcs gmc_v10_0_irq_funcs = {
+docs/upstream/deep/gmc_v10_0.c:171:	.set = gmc_v10_0_vm_fault_interrupt_state,
+docs/upstream/deep/gmc_v10_0.c:172:	.process = gmc_v10_0_process_interrupt,
+docs/upstream/deep/gmc_v10_0.c-173-};
+docs/upstream/deep/gmc_v10_0.c-174-
+docs/upstream/deep/gmc_v10_0.c:175:static const struct amdgpu_irq_src_funcs gmc_v10_0_ecc_funcs = {
+docs/upstream/deep/gmc_v10_0.c:176:	.set = gmc_v10_0_ecc_interrupt_state,
+docs/upstream/deep/gmc_v10_0.c-177-	.process = amdgpu_umc_process_ecc_irq,
+docs/upstream/deep/gmc_v10_0.c-178-};
+docs/upstream/deep/gmc_v10_0.c-179-
+docs/upstream/deep/gmc_v10_0.c:180:static void gmc_v10_0_set_irq_funcs(struct amdgpu_device *adev)
+docs/upstream/deep/gmc_v10_0.c-181-{
+docs/upstream/deep/gmc_v10_0.c-182-	adev->gmc.vm_fault.num_types = 1;
+docs/upstream/deep/gmc_v10_0.c:183:	adev->gmc.vm_fault.funcs = &gmc_v10_0_irq_funcs;
+docs/upstream/deep/gmc_v10_0.c-184-
+docs/upstream/deep/gmc_v10_0.c-185-	if (!amdgpu_sriov_vf(adev)) {
+docs/upstream/deep/gmc_v10_0.c-186-		adev->gmc.ecc_irq.num_types = 1;
+docs/upstream/deep/gmc_v10_0.c:187:		adev->gmc.ecc_irq.funcs = &gmc_v10_0_ecc_funcs;
+docs/upstream/deep/gmc_v10_0.c-188-	}
+docs/upstream/deep/gmc_v10_0.c-189-}
+docs/upstream/deep/gmc_v10_0.c-190-
+docs/upstream/deep/gmc_v10_0.c-191-/**
+docs/upstream/deep/gmc_v10_0.c:192: * gmc_v10_0_use_invalidate_semaphore - judge whether to use semaphore
+docs/upstream/deep/gmc_v10_0.c-193- *
+docs/upstream/deep/gmc_v10_0.c-194- * @adev: amdgpu_device pointer
+docs/upstream/deep/gmc_v10_0.c:195: * @vmhub: vmhub type
+docs/upstream/deep/gmc_v10_0.c-196- *
+docs/upstream/deep/gmc_v10_0.c-197- */
+docs/upstream/deep/gmc_v10_0.c:198:static bool gmc_v10_0_use_invalidate_semaphore(struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c:199:				       uint32_t vmhub)
+docs/upstream/deep/gmc_v10_0.c-200-{
+docs/upstream/deep/gmc_v10_0.c:201:	return ((vmhub == AMDGPU_MMHUB0(0)) &&
+docs/upstream/deep/gmc_v10_0.c-202-		(!amdgpu_sriov_vf(adev)));
+docs/upstream/deep/gmc_v10_0.c-203-}
+docs/upstream/deep/gmc_v10_0.c-204-
+docs/upstream/deep/gmc_v10_0.c:205:static bool gmc_v10_0_get_atc_vmid_pasid_mapping_info(
+docs/upstream/deep/gmc_v10_0.c-206-					struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c-207-					uint8_t vmid, uint16_t *p_pasid)
+docs/upstream/deep/gmc_v10_0.c-208-{
+docs/upstream/deep/gmc_v10_0.c-209-	uint32_t value;
+--
+docs/upstream/deep/gmc_v10_0.c-222- * by the amdgpu vm/hsa code.
+docs/upstream/deep/gmc_v10_0.c-223- */
+docs/upstream/deep/gmc_v10_0.c-224-
+docs/upstream/deep/gmc_v10_0.c-225-/**
+docs/upstream/deep/gmc_v10_0.c:226: * gmc_v10_0_flush_gpu_tlb - gart tlb flush callback
+docs/upstream/deep/gmc_v10_0.c-227- *
+docs/upstream/deep/gmc_v10_0.c-228- * @adev: amdgpu_device pointer
+docs/upstream/deep/gmc_v10_0.c-229- * @vmid: vm instance to flush
+docs/upstream/deep/gmc_v10_0.c:230: * @vmhub: vmhub type
+docs/upstream/deep/gmc_v10_0.c-231- * @flush_type: the flush type
+docs/upstream/deep/gmc_v10_0.c-232- *
+docs/upstream/deep/gmc_v10_0.c-233- * Flush the TLB for the requested page table.
+docs/upstream/deep/gmc_v10_0.c-234- */
+docs/upstream/deep/gmc_v10_0.c:235:static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+docs/upstream/deep/gmc_v10_0.c:236:					uint32_t vmhub, uint32_t flush_type)
+docs/upstream/deep/gmc_v10_0.c-237-{
+docs/upstream/deep/gmc_v10_0.c:238:	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(adev, vmhub);
+docs/upstream/deep/gmc_v10_0.c:239:	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
+docs/upstream/deep/gmc_v10_0.c:240:	u32 inv_req = hub->vmhub_funcs->get_invalidate_req(vmid, flush_type);
+docs/upstream/deep/gmc_v10_0.c-241-	/* Use register 17 for GART */
+docs/upstream/deep/gmc_v10_0.c-242-	const unsigned int eng = 17;
+docs/upstream/deep/gmc_v10_0.c-243-	unsigned char hub_ip = 0;
+docs/upstream/deep/gmc_v10_0.c-244-	u32 sem, req, ack;
+--
+docs/upstream/deep/gmc_v10_0.c-262-		return;
+docs/upstream/deep/gmc_v10_0.c-263-	}
+docs/upstream/deep/gmc_v10_0.c-264-
+docs/upstream/deep/gmc_v10_0.c-265-	/* This path is needed before KIQ/MES/GFXOFF are set up */
+docs/upstream/deep/gmc_v10_0.c:266:	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ? GC_HWIP : MMHUB_HWIP;
+docs/upstream/deep/gmc_v10_0.c-267-
+docs/upstream/deep/gmc_v10_0.c-268-	spin_lock(&adev->gmc.invalidate_lock);
+docs/upstream/deep/gmc_v10_0.c-269-	/*
+docs/upstream/deep/gmc_v10_0.c-270-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+--
+docs/upstream/deep/gmc_v10_0.c-292-	/*
+docs/upstream/deep/gmc_v10_0.c-293-	 * Issue a dummy read to wait for the ACK register to be cleared
+docs/upstream/deep/gmc_v10_0.c-294-	 * to avoid a false ACK due to the new fast GRBM interface.
+docs/upstream/deep/gmc_v10_0.c-295-	 */
+docs/upstream/deep/gmc_v10_0.c:296:	if ((vmhub == AMDGPU_GFXHUB(0)) &&
+docs/upstream/deep/gmc_v10_0.c-297-	    (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 3, 0)))
+docs/upstream/deep/gmc_v10_0.c-298-		RREG32_RLC_NO_KIQ(req, hub_ip);
+docs/upstream/deep/gmc_v10_0.c-299-
+docs/upstream/deep/gmc_v10_0.c-300-	/* Wait for ACK with a delay.*/
+--
+docs/upstream/deep/gmc_v10_0.c-314-	spin_unlock(&adev->gmc.invalidate_lock);
+docs/upstream/deep/gmc_v10_0.c-315-
+docs/upstream/deep/gmc_v10_0.c-316-	if (i >= adev->usec_timeout)
+docs/upstream/deep/gmc_v10_0.c-317-		dev_err(adev->dev, "Timeout waiting for VM flush hub: %d!\n",
+docs/upstream/deep/gmc_v10_0.c:318:			vmhub);
+docs/upstream/deep/gmc_v10_0.c-319-}
+docs/upstream/deep/gmc_v10_0.c-320-
+docs/upstream/deep/gmc_v10_0.c-321-/**
+docs/upstream/deep/gmc_v10_0.c:322: * gmc_v10_0_flush_gpu_tlb_pasid - tlb flush via pasid
+docs/upstream/deep/gmc_v10_0.c-323- *
+docs/upstream/deep/gmc_v10_0.c-324- * @adev: amdgpu_device pointer
+docs/upstream/deep/gmc_v10_0.c-325- * @pasid: pasid to be flush
+docs/upstream/deep/gmc_v10_0.c-326- * @flush_type: the flush type
+--
+docs/upstream/deep/gmc_v10_0.c-328- * @inst: is used to select which instance of KIQ to use for the invalidation
+docs/upstream/deep/gmc_v10_0.c-329- *
+docs/upstream/deep/gmc_v10_0.c-330- * Flush the TLB for the requested pasid.
+docs/upstream/deep/gmc_v10_0.c-331- */
+docs/upstream/deep/gmc_v10_0.c:332:static void gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c-333-					  uint16_t pasid, uint32_t flush_type,
+docs/upstream/deep/gmc_v10_0.c-334-					  bool all_hub, uint32_t inst)
+docs/upstream/deep/gmc_v10_0.c-335-{
+docs/upstream/deep/gmc_v10_0.c-336-	uint16_t queried;
+--
+docs/upstream/deep/gmc_v10_0.c-338-
+docs/upstream/deep/gmc_v10_0.c-339-	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
+docs/upstream/deep/gmc_v10_0.c-340-		bool valid;
+docs/upstream/deep/gmc_v10_0.c-341-
+docs/upstream/deep/gmc_v10_0.c:342:		valid = gmc_v10_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
+docs/upstream/deep/gmc_v10_0.c-343-								  &queried);
+docs/upstream/deep/gmc_v10_0.c-344-		if (!valid || queried != pasid)
+docs/upstream/deep/gmc_v10_0.c-345-			continue;
+docs/upstream/deep/gmc_v10_0.c-346-
+docs/upstream/deep/gmc_v10_0.c-347-		if (all_hub) {
+docs/upstream/deep/gmc_v10_0.c:348:			for_each_set_bit(i, adev->vmhubs_mask,
+docs/upstream/deep/gmc_v10_0.c-349-					 AMDGPU_MAX_VMHUBS)
+docs/upstream/deep/gmc_v10_0.c:350:				gmc_v10_0_flush_gpu_tlb(adev, vmid, i,
+docs/upstream/deep/gmc_v10_0.c-351-							flush_type);
+docs/upstream/deep/gmc_v10_0.c-352-		} else {
+docs/upstream/deep/gmc_v10_0.c:353:			gmc_v10_0_flush_gpu_tlb(adev, vmid, AMDGPU_GFXHUB(0),
+docs/upstream/deep/gmc_v10_0.c-354-						flush_type);
+docs/upstream/deep/gmc_v10_0.c-355-		}
+docs/upstream/deep/gmc_v10_0.c-356-	}
+docs/upstream/deep/gmc_v10_0.c-357-}
+docs/upstream/deep/gmc_v10_0.c-358-
+docs/upstream/deep/gmc_v10_0.c:359:static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
+docs/upstream/deep/gmc_v10_0.c-360-					     unsigned int vmid, uint64_t pd_addr)
+docs/upstream/deep/gmc_v10_0.c-361-{
+docs/upstream/deep/gmc_v10_0.c:362:	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(ring->adev, ring->vm_hub);
+docs/upstream/deep/gmc_v10_0.c:363:	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
+docs/upstream/deep/gmc_v10_0.c:364:	uint32_t req = hub->vmhub_funcs->get_invalidate_req(vmid, 0);
+docs/upstream/deep/gmc_v10_0.c-365-	unsigned int eng = ring->vm_inv_eng;
+docs/upstream/deep/gmc_v10_0.c-366-
+docs/upstream/deep/gmc_v10_0.c-367-	/*
+docs/upstream/deep/gmc_v10_0.c-368-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+--
+docs/upstream/deep/gmc_v10_0.c-403-
+docs/upstream/deep/gmc_v10_0.c-404-	return pd_addr;
+docs/upstream/deep/gmc_v10_0.c-405-}
+docs/upstream/deep/gmc_v10_0.c-406-
+docs/upstream/deep/gmc_v10_0.c:407:static void gmc_v10_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned int vmid,
+docs/upstream/deep/gmc_v10_0.c-408-					 unsigned int pasid)
+docs/upstream/deep/gmc_v10_0.c-409-{
+docs/upstream/deep/gmc_v10_0.c-410-	struct amdgpu_device *adev = ring->adev;
+docs/upstream/deep/gmc_v10_0.c-411-	uint32_t reg;
+--
+docs/upstream/deep/gmc_v10_0.c-450- * 1 system
+docs/upstream/deep/gmc_v10_0.c-451- * 0 valid
+docs/upstream/deep/gmc_v10_0.c-452- */
+docs/upstream/deep/gmc_v10_0.c-453-
+docs/upstream/deep/gmc_v10_0.c:454:static void gmc_v10_0_get_vm_pde(struct amdgpu_device *adev, int level,
+docs/upstream/deep/gmc_v10_0.c-455-				 uint64_t *addr, uint64_t *flags)
+docs/upstream/deep/gmc_v10_0.c-456-{
+docs/upstream/deep/gmc_v10_0.c-457-	if (!(*flags & AMDGPU_PDE_PTE) && !(*flags & AMDGPU_PTE_SYSTEM))
+docs/upstream/deep/gmc_v10_0.c-458-		*addr = amdgpu_gmc_vram_mc2pa(adev, *addr);
+--
+docs/upstream/deep/gmc_v10_0.c-473-			*flags |= AMDGPU_PTE_TF;
+docs/upstream/deep/gmc_v10_0.c-474-	}
+docs/upstream/deep/gmc_v10_0.c-475-}
+docs/upstream/deep/gmc_v10_0.c-476-
+docs/upstream/deep/gmc_v10_0.c:477:static void gmc_v10_0_get_vm_pte(struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c-478-				 struct amdgpu_vm *vm,
+docs/upstream/deep/gmc_v10_0.c-479-				 struct amdgpu_bo *bo,
+docs/upstream/deep/gmc_v10_0.c-480-				 uint32_t vm_flags,
+docs/upstream/deep/gmc_v10_0.c-481-				 uint64_t *flags)
+--
+docs/upstream/deep/gmc_v10_0.c-520-			       AMDGPU_GEM_CREATE_UNCACHED))
+docs/upstream/deep/gmc_v10_0.c-521-		*flags = AMDGPU_PTE_MTYPE_NV10(*flags, MTYPE_UC);
+docs/upstream/deep/gmc_v10_0.c-522-}
+docs/upstream/deep/gmc_v10_0.c-523-
+docs/upstream/deep/gmc_v10_0.c:524:static unsigned int gmc_v10_0_get_vbios_fb_size(struct amdgpu_device *adev)
+docs/upstream/deep/gmc_v10_0.c-525-{
+docs/upstream/deep/gmc_v10_0.c-526-	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
+docs/upstream/deep/gmc_v10_0.c-527-	unsigned int size;
+docs/upstream/deep/gmc_v10_0.c-528-
+--
+docs/upstream/deep/gmc_v10_0.c-542-
+docs/upstream/deep/gmc_v10_0.c-543-	return size;
+docs/upstream/deep/gmc_v10_0.c-544-}
+docs/upstream/deep/gmc_v10_0.c-545-
+docs/upstream/deep/gmc_v10_0.c:546:static const struct amdgpu_gmc_funcs gmc_v10_0_gmc_funcs = {
+docs/upstream/deep/gmc_v10_0.c:547:	.flush_gpu_tlb = gmc_v10_0_flush_gpu_tlb,
+docs/upstream/deep/gmc_v10_0.c:548:	.flush_gpu_tlb_pasid = gmc_v10_0_flush_gpu_tlb_pasid,
+docs/upstream/deep/gmc_v10_0.c:549:	.emit_flush_gpu_tlb = gmc_v10_0_emit_flush_gpu_tlb,
+docs/upstream/deep/gmc_v10_0.c:550:	.emit_pasid_mapping = gmc_v10_0_emit_pasid_mapping,
+docs/upstream/deep/gmc_v10_0.c:551:	.get_vm_pde = gmc_v10_0_get_vm_pde,
+docs/upstream/deep/gmc_v10_0.c:552:	.get_vm_pte = gmc_v10_0_get_vm_pte,
+docs/upstream/deep/gmc_v10_0.c:553:	.get_vbios_fb_size = gmc_v10_0_get_vbios_fb_size,
+docs/upstream/deep/gmc_v10_0.c-554-};
+docs/upstream/deep/gmc_v10_0.c-555-
+docs/upstream/deep/gmc_v10_0.c:556:static void gmc_v10_0_set_gmc_funcs(struct amdgpu_device *adev)
+docs/upstream/deep/gmc_v10_0.c-557-{
+docs/upstream/deep/gmc_v10_0.c-558-	if (adev->gmc.gmc_funcs == NULL)
+docs/upstream/deep/gmc_v10_0.c:559:		adev->gmc.gmc_funcs = &gmc_v10_0_gmc_funcs;
+docs/upstream/deep/gmc_v10_0.c-560-}
+docs/upstream/deep/gmc_v10_0.c-561-
+docs/upstream/deep/gmc_v10_0.c:562:static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
+docs/upstream/deep/gmc_v10_0.c-563-{
+docs/upstream/deep/gmc_v10_0.c-564-	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
+docs/upstream/deep/gmc_v10_0.c-565-	case IP_VERSION(8, 7, 0):
+docs/upstream/deep/gmc_v10_0.c-566-		adev->umc.max_ras_err_cnt_per_query = UMC_V8_7_TOTAL_CHANNEL_NUM;
+--
+docs/upstream/deep/gmc_v10_0.c-575-		break;
+docs/upstream/deep/gmc_v10_0.c-576-	}
+docs/upstream/deep/gmc_v10_0.c-577-}
+docs/upstream/deep/gmc_v10_0.c-578-
+docs/upstream/deep/gmc_v10_0.c:579:static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
+docs/upstream/deep/gmc_v10_0.c-580-{
+docs/upstream/deep/gmc_v10_0.c-581-	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
+docs/upstream/deep/gmc_v10_0.c-582-	case IP_VERSION(2, 3, 0):
+docs/upstream/deep/gmc_v10_0.c-583-	case IP_VERSION(2, 4, 0):
+--
+docs/upstream/deep/gmc_v10_0.c-589-		break;
+docs/upstream/deep/gmc_v10_0.c-590-	}
+docs/upstream/deep/gmc_v10_0.c-591-}
+docs/upstream/deep/gmc_v10_0.c-592-
+docs/upstream/deep/gmc_v10_0.c:593:static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
+docs/upstream/deep/gmc_v10_0.c-594-{
+docs/upstream/deep/gmc_v10_0.c-595-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+docs/upstream/deep/gmc_v10_0.c-596-	case IP_VERSION(10, 3, 0):
+docs/upstream/deep/gmc_v10_0.c-597-	case IP_VERSION(10, 3, 2):
+--
+docs/upstream/deep/gmc_v10_0.c-609-	}
+docs/upstream/deep/gmc_v10_0.c-610-}
+docs/upstream/deep/gmc_v10_0.c-611-
+docs/upstream/deep/gmc_v10_0.c-612-
+docs/upstream/deep/gmc_v10_0.c:613:static int gmc_v10_0_early_init(struct amdgpu_ip_block *ip_block)
+docs/upstream/deep/gmc_v10_0.c-614-{
+docs/upstream/deep/gmc_v10_0.c-615-	struct amdgpu_device *adev = ip_block->adev;
+docs/upstream/deep/gmc_v10_0.c-616-
+docs/upstream/deep/gmc_v10_0.c:617:	gmc_v10_0_set_mmhub_funcs(adev);
+docs/upstream/deep/gmc_v10_0.c:618:	gmc_v10_0_set_gfxhub_funcs(adev);
+docs/upstream/deep/gmc_v10_0.c:619:	gmc_v10_0_set_gmc_funcs(adev);
+docs/upstream/deep/gmc_v10_0.c:620:	gmc_v10_0_set_irq_funcs(adev);
+docs/upstream/deep/gmc_v10_0.c:621:	gmc_v10_0_set_umc_funcs(adev);
+docs/upstream/deep/gmc_v10_0.c-622-
+docs/upstream/deep/gmc_v10_0.c-623-	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
+docs/upstream/deep/gmc_v10_0.c-624-	adev->gmc.shared_aperture_end =
+docs/upstream/deep/gmc_v10_0.c-625-		adev->gmc.shared_aperture_start + (4ULL << 30) - 1;
+--
+docs/upstream/deep/gmc_v10_0.c-630-
+docs/upstream/deep/gmc_v10_0.c-631-	return 0;
+docs/upstream/deep/gmc_v10_0.c-632-}
+docs/upstream/deep/gmc_v10_0.c-633-
+docs/upstream/deep/gmc_v10_0.c:634:static int gmc_v10_0_late_init(struct amdgpu_ip_block *ip_block)
+docs/upstream/deep/gmc_v10_0.c-635-{
+docs/upstream/deep/gmc_v10_0.c-636-	struct amdgpu_device *adev = ip_block->adev;
+docs/upstream/deep/gmc_v10_0.c-637-	int r;
+docs/upstream/deep/gmc_v10_0.c-638-
+--
+docs/upstream/deep/gmc_v10_0.c-646-
+docs/upstream/deep/gmc_v10_0.c-647-	return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
+docs/upstream/deep/gmc_v10_0.c-648-}
+docs/upstream/deep/gmc_v10_0.c-649-
+docs/upstream/deep/gmc_v10_0.c:650:static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
+docs/upstream/deep/gmc_v10_0.c-651-					struct amdgpu_gmc *mc)
+docs/upstream/deep/gmc_v10_0.c-652-{
+docs/upstream/deep/gmc_v10_0.c-653-	u64 base = 0;
+docs/upstream/deep/gmc_v10_0.c-654-
+--
+docs/upstream/deep/gmc_v10_0.c-671-		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
+docs/upstream/deep/gmc_v10_0.c-672-}
+docs/upstream/deep/gmc_v10_0.c-673-
+docs/upstream/deep/gmc_v10_0.c-674-/**
+docs/upstream/deep/gmc_v10_0.c:675: * gmc_v10_0_mc_init - initialize the memory controller driver params
+docs/upstream/deep/gmc_v10_0.c-676- *
+docs/upstream/deep/gmc_v10_0.c-677- * @adev: amdgpu_device pointer
+docs/upstream/deep/gmc_v10_0.c-678- *
+docs/upstream/deep/gmc_v10_0.c-679- * Look up the amount of vram, vram width, and decide how to place
+docs/upstream/deep/gmc_v10_0.c-680- * vram and gart within the GPU's physical address space.
+docs/upstream/deep/gmc_v10_0.c-681- * Returns 0 for success.
+docs/upstream/deep/gmc_v10_0.c-682- */
+docs/upstream/deep/gmc_v10_0.c:683:static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
+docs/upstream/deep/gmc_v10_0.c-684-{
+docs/upstream/deep/gmc_v10_0.c-685-	int r;
+docs/upstream/deep/gmc_v10_0.c-686-
+docs/upstream/deep/gmc_v10_0.c-687-	/* size in MB on si */
+--
+docs/upstream/deep/gmc_v10_0.c-718-		amdgpu_gmc_set_gart_size(adev, SZ_512M);
+docs/upstream/deep/gmc_v10_0.c-719-		break;
+=== RINGS / FENCES / INTERRUPTS ===
+docs/upstream/deep/amdgpu_discovery.c-2744-	case IP_VERSION(11, 7, 0):
+docs/upstream/deep/amdgpu_discovery.c-2745-	case IP_VERSION(11, 7, 1):
+docs/upstream/deep/amdgpu_discovery.c-2746-		amdgpu_device_ip_block_add(adev, &mes_v11_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2747-		adev->enable_mes = true;
+docs/upstream/deep/amdgpu_discovery.c:2748:		adev->enable_mes_kiq = true;
+docs/upstream/deep/amdgpu_discovery.c-2749-		break;
+docs/upstream/deep/amdgpu_discovery.c-2750-	case IP_VERSION(12, 0, 0):
+docs/upstream/deep/amdgpu_discovery.c-2751-	case IP_VERSION(12, 0, 1):
+docs/upstream/deep/amdgpu_discovery.c-2752-		amdgpu_device_ip_block_add(adev, &mes_v12_0_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2753-		adev->enable_mes = true;
+docs/upstream/deep/amdgpu_discovery.c:2754:		adev->enable_mes_kiq = true;
+docs/upstream/deep/amdgpu_discovery.c-2755-		if (amdgpu_uni_mes)
+docs/upstream/deep/amdgpu_discovery.c-2756-			adev->enable_uni_mes = true;
+docs/upstream/deep/amdgpu_discovery.c-2757-		break;
+docs/upstream/deep/amdgpu_discovery.c-2758-	case IP_VERSION(12, 1, 0):
+docs/upstream/deep/amdgpu_discovery.c-2759-		amdgpu_device_ip_block_add(adev, &mes_v12_1_ip_block);
+docs/upstream/deep/amdgpu_discovery.c-2760-		adev->enable_mes = true;
+docs/upstream/deep/amdgpu_discovery.c:2761:		adev->enable_mes_kiq = true;
+docs/upstream/deep/amdgpu_discovery.c-2762-		if (amdgpu_uni_mes)
+docs/upstream/deep/amdgpu_discovery.c-2763-			adev->enable_uni_mes = true;
+docs/upstream/deep/amdgpu_discovery.c-2764-		break;
+docs/upstream/deep/amdgpu_discovery.c-2765-	default:
+--
+docs/upstream/deep/amdgpu_gfx.c-195-{
+docs/upstream/deep/amdgpu_gfx.c-196-	/* Policy: use 1st queue as high priority compute queue if we
+docs/upstream/deep/amdgpu_gfx.c-197-	 * have more than one compute queue.
+docs/upstream/deep/amdgpu_gfx.c-198-	 */
+docs/upstream/deep/amdgpu_gfx.c:199:	if (adev->gfx.num_compute_rings > 1 &&
+docs/upstream/deep/amdgpu_gfx.c-200-	    ring == &adev->gfx.compute_ring[0])
+docs/upstream/deep/amdgpu_gfx.c-201-		return true;
+docs/upstream/deep/amdgpu_gfx.c-202-
+docs/upstream/deep/amdgpu_gfx.c-203-	return false;
+--
+docs/upstream/deep/amdgpu_gfx.c-208-	int i, j, queue, pipe;
+docs/upstream/deep/amdgpu_gfx.c-209-	bool multipipe_policy = amdgpu_gfx_is_compute_multipipe_capable(adev);
+docs/upstream/deep/amdgpu_gfx.c-210-	int max_queues_per_mec = min(adev->gfx.mec.num_pipe_per_mec *
+docs/upstream/deep/amdgpu_gfx.c-211-				     adev->gfx.mec.num_queue_per_pipe,
+docs/upstream/deep/amdgpu_gfx.c:212:				     adev->gfx.num_compute_rings);
+docs/upstream/deep/amdgpu_gfx.c-213-	int num_xcc = adev->gfx.xcc_mask ? NUM_XCC(adev->gfx.xcc_mask) : 1;
+docs/upstream/deep/amdgpu_gfx.c-214-
+docs/upstream/deep/amdgpu_gfx.c-215-	if (multipipe_policy) {
+docs/upstream/deep/amdgpu_gfx.c-216-		/* policy: make queues evenly cross all pipes on MEC1 only
+--
+docs/upstream/deep/amdgpu_gfx.c-267-		adev->gfx.num_gfx_rings =
+docs/upstream/deep/amdgpu_gfx.c-268-			bitmap_weight(adev->gfx.me.queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
+docs/upstream/deep/amdgpu_gfx.c-269-}
+docs/upstream/deep/amdgpu_gfx.c-270-
+docs/upstream/deep/amdgpu_gfx.c:271:static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_gfx.c-272-				  struct amdgpu_ring *ring, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-273-{
+docs/upstream/deep/amdgpu_gfx.c-274-	int queue_bit;
+docs/upstream/deep/amdgpu_gfx.c-275-	int mec, pipe, queue;
+--
+docs/upstream/deep/amdgpu_gfx.c-302-	dev_err(adev->dev, "Failed to find a queue for KIQ\n");
+docs/upstream/deep/amdgpu_gfx.c-303-	return -EINVAL;
+docs/upstream/deep/amdgpu_gfx.c-304-}
+docs/upstream/deep/amdgpu_gfx.c-305-
+docs/upstream/deep/amdgpu_gfx.c:306:int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-307-{
+docs/upstream/deep/amdgpu_gfx.c:308:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:309:	struct amdgpu_irq_src *irq = &kiq->irq;
+docs/upstream/deep/amdgpu_gfx.c:310:	struct amdgpu_ring *ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-311-	int r = 0;
+docs/upstream/deep/amdgpu_gfx.c-312-
+docs/upstream/deep/amdgpu_gfx.c:313:	spin_lock_init(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-314-
+docs/upstream/deep/amdgpu_gfx.c-315-	ring->adev = NULL;
+docs/upstream/deep/amdgpu_gfx.c-316-	ring->ring_obj = NULL;
+docs/upstream/deep/amdgpu_gfx.c-317-	ring->use_doorbell = true;
+docs/upstream/deep/amdgpu_gfx.c-318-	ring->xcc_id = xcc_id;
+docs/upstream/deep/amdgpu_gfx.c-319-	ring->vm_hub = AMDGPU_GFXHUB(xcc_id);
+docs/upstream/deep/amdgpu_gfx.c-320-	ring->doorbell_index =
+docs/upstream/deep/amdgpu_gfx.c:321:		(adev->doorbell_index.kiq +
+docs/upstream/deep/amdgpu_gfx.c-322-		 xcc_id * adev->doorbell_index.xcc_doorbell_range)
+docs/upstream/deep/amdgpu_gfx.c-323-		<< 1;
+docs/upstream/deep/amdgpu_gfx.c-324-
+docs/upstream/deep/amdgpu_gfx.c:325:	r = amdgpu_gfx_kiq_acquire(adev, ring, xcc_id);
+docs/upstream/deep/amdgpu_gfx.c-326-	if (r)
+docs/upstream/deep/amdgpu_gfx.c-327-		return r;
+docs/upstream/deep/amdgpu_gfx.c-328-
+docs/upstream/deep/amdgpu_gfx.c:329:	ring->eop_gpu_addr = kiq->eop_gpu_addr;
+docs/upstream/deep/amdgpu_gfx.c-330-	ring->no_scheduler = true;
+docs/upstream/deep/amdgpu_gfx.c:331:	snprintf(ring->name, sizeof(ring->name), "kiq_%hhu.%hhu.%hhu.%hhu",
+docs/upstream/deep/amdgpu_gfx.c-332-		 (unsigned char)xcc_id, (unsigned char)ring->me,
+docs/upstream/deep/amdgpu_gfx.c-333-		 (unsigned char)ring->pipe, (unsigned char)ring->queue);
+docs/upstream/deep/amdgpu_gfx.c:334:	r = amdgpu_ring_init(adev, ring, 1024, irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
+docs/upstream/deep/amdgpu_gfx.c-335-			     AMDGPU_RING_PRIO_DEFAULT, NULL);
+docs/upstream/deep/amdgpu_gfx.c-336-	if (r)
+docs/upstream/deep/amdgpu_gfx.c:337:		dev_warn(adev->dev, "(%d) failed to init kiq ring\n", r);
+docs/upstream/deep/amdgpu_gfx.c-338-
+docs/upstream/deep/amdgpu_gfx.c-339-	return r;
+docs/upstream/deep/amdgpu_gfx.c-340-}
+docs/upstream/deep/amdgpu_gfx.c-341-
+docs/upstream/deep/amdgpu_gfx.c:342:void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring)
+docs/upstream/deep/amdgpu_gfx.c-343-{
+docs/upstream/deep/amdgpu_gfx.c-344-	amdgpu_ring_fini(ring);
+docs/upstream/deep/amdgpu_gfx.c-345-}
+docs/upstream/deep/amdgpu_gfx.c-346-
+docs/upstream/deep/amdgpu_gfx.c:347:void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-348-{
+docs/upstream/deep/amdgpu_gfx.c:349:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c-350-
+docs/upstream/deep/amdgpu_gfx.c:351:	amdgpu_bo_free_kernel(&kiq->eop_obj, &kiq->eop_gpu_addr, NULL);
+docs/upstream/deep/amdgpu_gfx.c-352-}
+docs/upstream/deep/amdgpu_gfx.c-353-
+docs/upstream/deep/amdgpu_gfx.c:354:int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_gfx.c-355-			unsigned int hpd_size, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-356-{
+docs/upstream/deep/amdgpu_gfx.c-357-	int r;
+docs/upstream/deep/amdgpu_gfx.c-358-	u32 *hpd;
+docs/upstream/deep/amdgpu_gfx.c:359:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c-360-
+docs/upstream/deep/amdgpu_gfx.c-361-	r = amdgpu_bo_create_kernel(adev, hpd_size, PAGE_SIZE,
+docs/upstream/deep/amdgpu_gfx.c:362:				    AMDGPU_GEM_DOMAIN_GTT, &kiq->eop_obj,
+docs/upstream/deep/amdgpu_gfx.c:363:				    &kiq->eop_gpu_addr, (void **)&hpd);
+docs/upstream/deep/amdgpu_gfx.c-364-	if (r) {
+docs/upstream/deep/amdgpu_gfx.c-365-		dev_warn(adev->dev, "failed to create KIQ bo (%d).\n", r);
+docs/upstream/deep/amdgpu_gfx.c-366-		return r;
+docs/upstream/deep/amdgpu_gfx.c-367-	}
+docs/upstream/deep/amdgpu_gfx.c-368-
+docs/upstream/deep/amdgpu_gfx.c-369-	memset(hpd, 0, hpd_size);
+docs/upstream/deep/amdgpu_gfx.c-370-
+docs/upstream/deep/amdgpu_gfx.c:371:	r = amdgpu_bo_reserve(kiq->eop_obj, true);
+docs/upstream/deep/amdgpu_gfx.c-372-	if (unlikely(r != 0))
+docs/upstream/deep/amdgpu_gfx.c:373:		dev_warn(adev->dev, "(%d) reserve kiq eop bo failed\n", r);
+docs/upstream/deep/amdgpu_gfx.c:374:	amdgpu_bo_kunmap(kiq->eop_obj);
+docs/upstream/deep/amdgpu_gfx.c:375:	amdgpu_bo_unreserve(kiq->eop_obj);
+docs/upstream/deep/amdgpu_gfx.c-376-
+docs/upstream/deep/amdgpu_gfx.c-377-	return 0;
+docs/upstream/deep/amdgpu_gfx.c-378-}
+docs/upstream/deep/amdgpu_gfx.c-379-
+--
+docs/upstream/deep/amdgpu_gfx.c-381-int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_gfx.c-382-			   unsigned int mqd_size, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-383-{
+docs/upstream/deep/amdgpu_gfx.c-384-	int r, i, j;
+docs/upstream/deep/amdgpu_gfx.c:385:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:386:	struct amdgpu_ring *ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-387-	u32 domain = AMDGPU_GEM_DOMAIN_GTT;
+docs/upstream/deep/amdgpu_gfx.c-388-	u32 gfx_mqd_size = max(adev->mqds[AMDGPU_HW_IP_GFX].mqd_size, mqd_size);
+docs/upstream/deep/amdgpu_gfx.c-389-	u32 compute_mqd_size = max(adev->mqds[AMDGPU_HW_IP_COMPUTE].mqd_size, mqd_size);
+docs/upstream/deep/amdgpu_gfx.c-390-
+--
+docs/upstream/deep/amdgpu_gfx.c-394-		domain |= AMDGPU_GEM_DOMAIN_VRAM;
+docs/upstream/deep/amdgpu_gfx.c-395-#endif
+docs/upstream/deep/amdgpu_gfx.c-396-
+docs/upstream/deep/amdgpu_gfx.c-397-	/* create MQD for KIQ */
+docs/upstream/deep/amdgpu_gfx.c:398:	if (!adev->enable_mes_kiq && !ring->mqd_obj) {
+docs/upstream/deep/amdgpu_gfx.c-399-		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
+docs/upstream/deep/amdgpu_gfx.c-400-		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
+docs/upstream/deep/amdgpu_gfx.c-401-		 * deallocated and gart_unbind, to strict diverage we decide to use VRAM domain for
+docs/upstream/deep/amdgpu_gfx.c-402-		 * KIQ MQD no matter SRIOV or Bare-metal
+--
+docs/upstream/deep/amdgpu_gfx.c-412-			return r;
+docs/upstream/deep/amdgpu_gfx.c-413-		}
+docs/upstream/deep/amdgpu_gfx.c-414-
+docs/upstream/deep/amdgpu_gfx.c-415-		/* prepare MQD backup */
+docs/upstream/deep/amdgpu_gfx.c:416:		kiq->mqd_backup = kzalloc(mqd_size, GFP_KERNEL);
+docs/upstream/deep/amdgpu_gfx.c:417:		if (!kiq->mqd_backup) {
+docs/upstream/deep/amdgpu_gfx.c-418-			dev_warn(adev->dev,
+docs/upstream/deep/amdgpu_gfx.c-419-				 "no memory to create MQD backup for ring %s\n", ring->name);
+docs/upstream/deep/amdgpu_gfx.c-420-			return -ENOMEM;
+docs/upstream/deep/amdgpu_gfx.c-421-		}
+--
+docs/upstream/deep/amdgpu_gfx.c-445-		}
+docs/upstream/deep/amdgpu_gfx.c-446-	}
+docs/upstream/deep/amdgpu_gfx.c-447-
+docs/upstream/deep/amdgpu_gfx.c-448-	/* create MQD for each KCQ */
+docs/upstream/deep/amdgpu_gfx.c:449:	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c:450:		j = i + xcc_id * adev->gfx.num_compute_rings;
+docs/upstream/deep/amdgpu_gfx.c-451-		ring = &adev->gfx.compute_ring[j];
+docs/upstream/deep/amdgpu_gfx.c-452-		if (!ring->mqd_obj) {
+docs/upstream/deep/amdgpu_gfx.c-453-			r = amdgpu_bo_create_kernel(adev, AMDGPU_MQD_SIZE_ALIGN(compute_mqd_size),
+docs/upstream/deep/amdgpu_gfx.c-454-							PAGE_SIZE, domain, &ring->mqd_obj,
+--
+docs/upstream/deep/amdgpu_gfx.c-474-void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-475-{
+docs/upstream/deep/amdgpu_gfx.c-476-	struct amdgpu_ring *ring = NULL;
+docs/upstream/deep/amdgpu_gfx.c-477-	int i, j;
+docs/upstream/deep/amdgpu_gfx.c:478:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c-479-
+docs/upstream/deep/amdgpu_gfx.c-480-	if (adev->asic_type >= CHIP_NAVI10 && amdgpu_async_gfx_ring) {
+docs/upstream/deep/amdgpu_gfx.c-481-		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c-482-			ring = &adev->gfx.gfx_ring[i];
+--
+docs/upstream/deep/amdgpu_gfx.c-486-					      &ring->mqd_ptr);
+docs/upstream/deep/amdgpu_gfx.c-487-		}
+docs/upstream/deep/amdgpu_gfx.c-488-	}
+docs/upstream/deep/amdgpu_gfx.c-489-
+docs/upstream/deep/amdgpu_gfx.c:490:	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c:491:		j = i + xcc_id * adev->gfx.num_compute_rings;
+docs/upstream/deep/amdgpu_gfx.c-492-		ring = &adev->gfx.compute_ring[j];
+docs/upstream/deep/amdgpu_gfx.c-493-		kfree(adev->gfx.mec.mqd_backup[j]);
+docs/upstream/deep/amdgpu_gfx.c-494-		amdgpu_bo_free_kernel(&ring->mqd_obj,
+docs/upstream/deep/amdgpu_gfx.c-495-				      &ring->mqd_gpu_addr,
+docs/upstream/deep/amdgpu_gfx.c-496-				      &ring->mqd_ptr);
+docs/upstream/deep/amdgpu_gfx.c-497-	}
+docs/upstream/deep/amdgpu_gfx.c-498-
+docs/upstream/deep/amdgpu_gfx.c:499:	ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c:500:	kfree(kiq->mqd_backup);
+docs/upstream/deep/amdgpu_gfx.c-501-	amdgpu_bo_free_kernel(&ring->mqd_obj,
+docs/upstream/deep/amdgpu_gfx.c-502-			      &ring->mqd_gpu_addr,
+docs/upstream/deep/amdgpu_gfx.c-503-			      &ring->mqd_ptr);
+docs/upstream/deep/amdgpu_gfx.c-504-}
+--
+docs/upstream/deep/amdgpu_gfx.c-553-}
+docs/upstream/deep/amdgpu_gfx.c-554-
+docs/upstream/deep/amdgpu_gfx.c-555-int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-556-{
+docs/upstream/deep/amdgpu_gfx.c:557:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:558:	struct amdgpu_ring *kiq_ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-559-	int i, r = 0;
+docs/upstream/deep/amdgpu_gfx.c-560-	int j;
+docs/upstream/deep/amdgpu_gfx.c-561-
+docs/upstream/deep/amdgpu_gfx.c-562-	if (adev->enable_mes) {
+docs/upstream/deep/amdgpu_gfx.c:563:		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c:564:			j = i + xcc_id * adev->gfx.num_compute_rings;
+docs/upstream/deep/amdgpu_gfx.c-565-			amdgpu_mes_unmap_legacy_queue(adev,
+docs/upstream/deep/amdgpu_gfx.c-566-						   &adev->gfx.compute_ring[j],
+docs/upstream/deep/amdgpu_gfx.c-567-						   RESET_QUEUES, 0, 0, xcc_id);
+docs/upstream/deep/amdgpu_gfx.c-568-		}
+docs/upstream/deep/amdgpu_gfx.c-569-		return 0;
+docs/upstream/deep/amdgpu_gfx.c-570-	}
+docs/upstream/deep/amdgpu_gfx.c-571-
+docs/upstream/deep/amdgpu_gfx.c:572:	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
+docs/upstream/deep/amdgpu_gfx.c-573-		return -EINVAL;
+docs/upstream/deep/amdgpu_gfx.c-574-
+docs/upstream/deep/amdgpu_gfx.c:575:	if (!kiq_ring->sched.ready || amdgpu_in_reset(adev))
+docs/upstream/deep/amdgpu_gfx.c-576-		return 0;
+docs/upstream/deep/amdgpu_gfx.c-577-
+docs/upstream/deep/amdgpu_gfx.c:578:	spin_lock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c:579:	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
+docs/upstream/deep/amdgpu_gfx.c:580:					adev->gfx.num_compute_rings)) {
+docs/upstream/deep/amdgpu_gfx.c:581:		spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-582-		return -ENOMEM;
+docs/upstream/deep/amdgpu_gfx.c-583-	}
+docs/upstream/deep/amdgpu_gfx.c-584-
+docs/upstream/deep/amdgpu_gfx.c:585:	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c:586:		j = i + xcc_id * adev->gfx.num_compute_rings;
+docs/upstream/deep/amdgpu_gfx.c:587:		kiq->pmf->kiq_unmap_queues(kiq_ring,
+docs/upstream/deep/amdgpu_gfx.c-588-					   &adev->gfx.compute_ring[j],
+docs/upstream/deep/amdgpu_gfx.c-589-					   RESET_QUEUES, 0, 0);
+docs/upstream/deep/amdgpu_gfx.c-590-	}
+docs/upstream/deep/amdgpu_gfx.c-591-	/* Submit unmap queue packet */
+docs/upstream/deep/amdgpu_gfx.c:592:	amdgpu_ring_commit(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c-593-	/*
+docs/upstream/deep/amdgpu_gfx.c-594-	 * Ring test will do a basic scratch register change check. Just run
+docs/upstream/deep/amdgpu_gfx.c-595-	 * this to ensure that unmap queues that is submitted before got
+docs/upstream/deep/amdgpu_gfx.c-596-	 * processed successfully before returning.
+docs/upstream/deep/amdgpu_gfx.c-597-	 */
+docs/upstream/deep/amdgpu_gfx.c:598:	r = amdgpu_ring_test_helper(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c-599-
+docs/upstream/deep/amdgpu_gfx.c:600:	spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-601-
+docs/upstream/deep/amdgpu_gfx.c-602-	return r;
+docs/upstream/deep/amdgpu_gfx.c-603-}
+docs/upstream/deep/amdgpu_gfx.c-604-
+docs/upstream/deep/amdgpu_gfx.c-605-int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-606-{
+docs/upstream/deep/amdgpu_gfx.c:607:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:608:	struct amdgpu_ring *kiq_ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-609-	int i, r = 0;
+docs/upstream/deep/amdgpu_gfx.c-610-	int j;
+docs/upstream/deep/amdgpu_gfx.c-611-
+docs/upstream/deep/amdgpu_gfx.c-612-	if (adev->enable_mes) {
+--
+docs/upstream/deep/amdgpu_gfx.c-620-		}
+docs/upstream/deep/amdgpu_gfx.c-621-		return 0;
+docs/upstream/deep/amdgpu_gfx.c-622-	}
+docs/upstream/deep/amdgpu_gfx.c-623-
+docs/upstream/deep/amdgpu_gfx.c:624:	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
+docs/upstream/deep/amdgpu_gfx.c-625-		return -EINVAL;
+docs/upstream/deep/amdgpu_gfx.c-626-
+docs/upstream/deep/amdgpu_gfx.c:627:	if (!adev->gfx.kiq[0].ring.sched.ready || amdgpu_in_reset(adev))
+docs/upstream/deep/amdgpu_gfx.c-628-		return 0;
+docs/upstream/deep/amdgpu_gfx.c-629-
+docs/upstream/deep/amdgpu_gfx.c-630-	if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {
+docs/upstream/deep/amdgpu_gfx.c:631:		spin_lock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c:632:		if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
+docs/upstream/deep/amdgpu_gfx.c-633-						adev->gfx.num_gfx_rings)) {
+docs/upstream/deep/amdgpu_gfx.c:634:			spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-635-			return -ENOMEM;
+docs/upstream/deep/amdgpu_gfx.c-636-		}
+docs/upstream/deep/amdgpu_gfx.c-637-
+docs/upstream/deep/amdgpu_gfx.c-638-		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c-639-			j = i + xcc_id * adev->gfx.num_gfx_rings;
+docs/upstream/deep/amdgpu_gfx.c:640:			kiq->pmf->kiq_unmap_queues(kiq_ring,
+docs/upstream/deep/amdgpu_gfx.c-641-						   &adev->gfx.gfx_ring[j],
+docs/upstream/deep/amdgpu_gfx.c-642-						   PREEMPT_QUEUES, 0, 0);
+docs/upstream/deep/amdgpu_gfx.c-643-		}
+docs/upstream/deep/amdgpu_gfx.c-644-		/* Submit unmap queue packet */
+docs/upstream/deep/amdgpu_gfx.c:645:		amdgpu_ring_commit(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c-646-
+docs/upstream/deep/amdgpu_gfx.c-647-		/*
+docs/upstream/deep/amdgpu_gfx.c-648-		 * Ring test will do a basic scratch register change check.
+docs/upstream/deep/amdgpu_gfx.c-649-		 * Just run this to ensure that unmap queues that is submitted
+docs/upstream/deep/amdgpu_gfx.c-650-		 * before got processed successfully before returning.
+docs/upstream/deep/amdgpu_gfx.c-651-		 */
+docs/upstream/deep/amdgpu_gfx.c:652:		r = amdgpu_ring_test_helper(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c:653:		spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-654-	}
+docs/upstream/deep/amdgpu_gfx.c-655-
+docs/upstream/deep/amdgpu_gfx.c-656-	return r;
+docs/upstream/deep/amdgpu_gfx.c-657-}
+--
+docs/upstream/deep/amdgpu_gfx.c-670-}
+docs/upstream/deep/amdgpu_gfx.c-671-
+docs/upstream/deep/amdgpu_gfx.c-672-static int amdgpu_gfx_mes_enable_kcq(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-673-{
+docs/upstream/deep/amdgpu_gfx.c:674:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:675:	struct amdgpu_ring *kiq_ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-676-	uint64_t queue_mask = ~0ULL;
+docs/upstream/deep/amdgpu_gfx.c-677-	int r, i, j;
+docs/upstream/deep/amdgpu_gfx.c-678-
+docs/upstream/deep/amdgpu_gfx.c-679-	amdgpu_device_flush_hdp(adev, NULL);
+docs/upstream/deep/amdgpu_gfx.c-680-
+docs/upstream/deep/amdgpu_gfx.c-681-	if (!adev->enable_uni_mes) {
+docs/upstream/deep/amdgpu_gfx.c:682:		spin_lock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c:683:		r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->set_resources_size);
+docs/upstream/deep/amdgpu_gfx.c-684-		if (r) {
+docs/upstream/deep/amdgpu_gfx.c-685-			dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
+docs/upstream/deep/amdgpu_gfx.c:686:			spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-687-			return r;
+docs/upstream/deep/amdgpu_gfx.c-688-		}
+docs/upstream/deep/amdgpu_gfx.c-689-
+docs/upstream/deep/amdgpu_gfx.c:690:		kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
+docs/upstream/deep/amdgpu_gfx.c:691:		r = amdgpu_ring_test_helper(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c:692:		spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-693-		if (r)
+docs/upstream/deep/amdgpu_gfx.c-694-			dev_err(adev->dev, "KIQ failed to set resources\n");
+docs/upstream/deep/amdgpu_gfx.c-695-	}
+docs/upstream/deep/amdgpu_gfx.c-696-
+docs/upstream/deep/amdgpu_gfx.c:697:	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c:698:		j = i + xcc_id * adev->gfx.num_compute_rings;
+docs/upstream/deep/amdgpu_gfx.c-699-		r = amdgpu_mes_map_legacy_queue(adev,
+docs/upstream/deep/amdgpu_gfx.c-700-						&adev->gfx.compute_ring[j],
+docs/upstream/deep/amdgpu_gfx.c-701-						xcc_id);
+docs/upstream/deep/amdgpu_gfx.c-702-		if (r) {
+--
+docs/upstream/deep/amdgpu_gfx.c-709-}
+docs/upstream/deep/amdgpu_gfx.c-710-
+docs/upstream/deep/amdgpu_gfx.c-711-int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-712-{
+docs/upstream/deep/amdgpu_gfx.c:713:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:714:	struct amdgpu_ring *kiq_ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-715-	uint64_t queue_mask = 0;
+docs/upstream/deep/amdgpu_gfx.c-716-	int r, i, j;
+docs/upstream/deep/amdgpu_gfx.c-717-
+docs/upstream/deep/amdgpu_gfx.c-718-	if (adev->mes.enable_legacy_queue_map)
+docs/upstream/deep/amdgpu_gfx.c-719-		return amdgpu_gfx_mes_enable_kcq(adev, xcc_id);
+docs/upstream/deep/amdgpu_gfx.c-720-
+docs/upstream/deep/amdgpu_gfx.c:721:	if (!kiq->pmf || !kiq->pmf->kiq_map_queues || !kiq->pmf->kiq_set_resources)
+docs/upstream/deep/amdgpu_gfx.c-722-		return -EINVAL;
+docs/upstream/deep/amdgpu_gfx.c-723-
+docs/upstream/deep/amdgpu_gfx.c-724-	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
+docs/upstream/deep/amdgpu_gfx.c-725-		if (!test_bit(i, adev->gfx.mec_bitmap[xcc_id].queue_bitmap))
+--
+docs/upstream/deep/amdgpu_gfx.c-737-	}
+docs/upstream/deep/amdgpu_gfx.c-738-
+docs/upstream/deep/amdgpu_gfx.c-739-	amdgpu_device_flush_hdp(adev, NULL);
+docs/upstream/deep/amdgpu_gfx.c-740-
+docs/upstream/deep/amdgpu_gfx.c:741:	dev_info(adev->dev, "kiq ring mec %d pipe %d q %d\n", kiq_ring->me,
+docs/upstream/deep/amdgpu_gfx.c:742:		 kiq_ring->pipe, kiq_ring->queue);
+docs/upstream/deep/amdgpu_gfx.c-743-
+docs/upstream/deep/amdgpu_gfx.c:744:	spin_lock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c:745:	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
+docs/upstream/deep/amdgpu_gfx.c:746:					adev->gfx.num_compute_rings +
+docs/upstream/deep/amdgpu_gfx.c:747:					kiq->pmf->set_resources_size);
+docs/upstream/deep/amdgpu_gfx.c-748-	if (r) {
+docs/upstream/deep/amdgpu_gfx.c-749-		dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
+docs/upstream/deep/amdgpu_gfx.c:750:		spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-751-		return r;
+docs/upstream/deep/amdgpu_gfx.c-752-	}
+docs/upstream/deep/amdgpu_gfx.c-753-
+docs/upstream/deep/amdgpu_gfx.c:754:	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
+docs/upstream/deep/amdgpu_gfx.c:755:	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c:756:		j = i + xcc_id * adev->gfx.num_compute_rings;
+docs/upstream/deep/amdgpu_gfx.c:757:		kiq->pmf->kiq_map_queues(kiq_ring,
+docs/upstream/deep/amdgpu_gfx.c-758-					 &adev->gfx.compute_ring[j]);
+docs/upstream/deep/amdgpu_gfx.c-759-	}
+docs/upstream/deep/amdgpu_gfx.c-760-	/* Submit map queue packet */
+docs/upstream/deep/amdgpu_gfx.c:761:	amdgpu_ring_commit(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c-762-	/*
+docs/upstream/deep/amdgpu_gfx.c-763-	 * Ring test will do a basic scratch register change check. Just run
+docs/upstream/deep/amdgpu_gfx.c-764-	 * this to ensure that map queues that is submitted before got
+docs/upstream/deep/amdgpu_gfx.c-765-	 * processed successfully before returning.
+docs/upstream/deep/amdgpu_gfx.c-766-	 */
+docs/upstream/deep/amdgpu_gfx.c:767:	r = amdgpu_ring_test_helper(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c:768:	spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-769-	if (r)
+docs/upstream/deep/amdgpu_gfx.c-770-		dev_err(adev->dev, "KCQ enable failed\n");
+docs/upstream/deep/amdgpu_gfx.c-771-
+docs/upstream/deep/amdgpu_gfx.c-772-	return r;
+docs/upstream/deep/amdgpu_gfx.c-773-}
+docs/upstream/deep/amdgpu_gfx.c-774-
+docs/upstream/deep/amdgpu_gfx.c-775-int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-776-{
+docs/upstream/deep/amdgpu_gfx.c:777:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:778:	struct amdgpu_ring *kiq_ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-779-	int r, i, j;
+docs/upstream/deep/amdgpu_gfx.c-780-
+docs/upstream/deep/amdgpu_gfx.c:781:	if (!kiq->pmf || !kiq->pmf->kiq_map_queues)
+docs/upstream/deep/amdgpu_gfx.c-782-		return -EINVAL;
+docs/upstream/deep/amdgpu_gfx.c-783-
+docs/upstream/deep/amdgpu_gfx.c-784-	amdgpu_device_flush_hdp(adev, NULL);
+docs/upstream/deep/amdgpu_gfx.c-785-
+--
+docs/upstream/deep/amdgpu_gfx.c-797-
+docs/upstream/deep/amdgpu_gfx.c-798-		return 0;
+docs/upstream/deep/amdgpu_gfx.c-799-	}
+docs/upstream/deep/amdgpu_gfx.c-800-
+docs/upstream/deep/amdgpu_gfx.c:801:	spin_lock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-802-	/* No need to map kcq on the slave */
+docs/upstream/deep/amdgpu_gfx.c-803-	if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {
+docs/upstream/deep/amdgpu_gfx.c:804:		r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
+docs/upstream/deep/amdgpu_gfx.c-805-						adev->gfx.num_gfx_rings);
+docs/upstream/deep/amdgpu_gfx.c-806-		if (r) {
+docs/upstream/deep/amdgpu_gfx.c-807-			dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
+docs/upstream/deep/amdgpu_gfx.c:808:			spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-809-			return r;
+docs/upstream/deep/amdgpu_gfx.c-810-		}
+docs/upstream/deep/amdgpu_gfx.c-811-
+docs/upstream/deep/amdgpu_gfx.c-812-		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+docs/upstream/deep/amdgpu_gfx.c-813-			j = i + xcc_id * adev->gfx.num_gfx_rings;
+docs/upstream/deep/amdgpu_gfx.c:814:			kiq->pmf->kiq_map_queues(kiq_ring,
+docs/upstream/deep/amdgpu_gfx.c-815-						 &adev->gfx.gfx_ring[j]);
+docs/upstream/deep/amdgpu_gfx.c-816-		}
+docs/upstream/deep/amdgpu_gfx.c-817-	}
+docs/upstream/deep/amdgpu_gfx.c-818-	/* Submit map queue packet */
+docs/upstream/deep/amdgpu_gfx.c:819:	amdgpu_ring_commit(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c-820-	/*
+docs/upstream/deep/amdgpu_gfx.c-821-	 * Ring test will do a basic scratch register change check. Just run
+docs/upstream/deep/amdgpu_gfx.c-822-	 * this to ensure that map queues that is submitted before got
+docs/upstream/deep/amdgpu_gfx.c-823-	 * processed successfully before returning.
+docs/upstream/deep/amdgpu_gfx.c-824-	 */
+docs/upstream/deep/amdgpu_gfx.c:825:	r = amdgpu_ring_test_helper(kiq_ring);
+docs/upstream/deep/amdgpu_gfx.c:826:	spin_unlock(&kiq->ring_lock);
+docs/upstream/deep/amdgpu_gfx.c-827-	if (r)
+docs/upstream/deep/amdgpu_gfx.c-828-		dev_err(adev->dev, "KGQ enable failed\n");
+docs/upstream/deep/amdgpu_gfx.c-829-
+docs/upstream/deep/amdgpu_gfx.c-830-	return r;
+--
+docs/upstream/deep/amdgpu_gfx.c-1073-int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
+docs/upstream/deep/amdgpu_gfx.c-1074-		void *err_data,
+docs/upstream/deep/amdgpu_gfx.c-1075-		struct amdgpu_iv_entry *entry)
+docs/upstream/deep/amdgpu_gfx.c-1076-{
+docs/upstream/deep/amdgpu_gfx.c:1077:	/* TODO ue will trigger an interrupt.
+docs/upstream/deep/amdgpu_gfx.c-1078-	 *
+docs/upstream/deep/amdgpu_gfx.c:1079:	 * When “Full RAS” is enabled, the per-IP interrupt sources should
+docs/upstream/deep/amdgpu_gfx.c-1080-	 * be disabled and the driver should only look for the aggregated
+docs/upstream/deep/amdgpu_gfx.c:1081:	 * interrupt via sync flood
+docs/upstream/deep/amdgpu_gfx.c-1082-	 */
+docs/upstream/deep/amdgpu_gfx.c-1083-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
+docs/upstream/deep/amdgpu_gfx.c-1084-		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+docs/upstream/deep/amdgpu_gfx.c-1085-		if (adev->gfx.ras && adev->gfx.ras->ras_block.hw_ops &&
+--
+docs/upstream/deep/amdgpu_gfx.c-1104-
+docs/upstream/deep/amdgpu_gfx.c-1105-	ih_data.head = *ras_if;
+docs/upstream/deep/amdgpu_gfx.c-1106-
+docs/upstream/deep/amdgpu_gfx.c-1107-	dev_err(adev->dev, "CP ECC ERROR IRQ\n");
+docs/upstream/deep/amdgpu_gfx.c:1108:	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+docs/upstream/deep/amdgpu_gfx.c-1109-	return 0;
+docs/upstream/deep/amdgpu_gfx.c-1110-}
+docs/upstream/deep/amdgpu_gfx.c-1111-
+docs/upstream/deep/amdgpu_gfx.c-1112-void amdgpu_gfx_ras_error_func(struct amdgpu_device *adev,
+--
+docs/upstream/deep/amdgpu_gfx.c-1127-	for_each_inst(i, xcc_mask)
+docs/upstream/deep/amdgpu_gfx.c-1128-		func(adev, ras_error_status, i);
+docs/upstream/deep/amdgpu_gfx.c-1129-}
+docs/upstream/deep/amdgpu_gfx.c-1130-
+docs/upstream/deep/amdgpu_gfx.c:1131:uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_id)
+docs/upstream/deep/amdgpu_gfx.c-1132-{
+docs/upstream/deep/amdgpu_gfx.c-1133-	signed long r, cnt = 0;
+docs/upstream/deep/amdgpu_gfx.c-1134-	unsigned long flags;
+docs/upstream/deep/amdgpu_gfx.c-1135-	uint32_t seq, reg_val_offs = 0, value = 0;
+docs/upstream/deep/amdgpu_gfx.c:1136:	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+docs/upstream/deep/amdgpu_gfx.c:1137:	struct amdgpu_ring *ring = &kiq->ring;
+docs/upstream/deep/amdgpu_gfx.c-1138-
+docs/upstream/deep/amdgpu_gfx.c-1139-	if (amdgpu_device_skip_hw_access(adev))
+docs/upstream/deep/amdgpu_gfx.c-1140-		return 0;
