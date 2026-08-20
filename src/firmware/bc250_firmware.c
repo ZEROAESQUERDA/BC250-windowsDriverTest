@@ -189,6 +189,27 @@ Bc250FirmwareValidateSet(
 }
 
 NTSTATUS
+Bc250FirmwareMarkLoaded(
+    _Inout_ BC250_FIRMWARE_STATE* FirmwareState,
+    _In_ BC250_FIRMWARE_KIND Kind
+    )
+{
+    ULONG bit;
+
+    if (FirmwareState == NULL || Kind >= Bc250FirmwareCount) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    bit = Bc250FirmwareBit(Kind);
+    if ((FirmwareState->ValidMask & bit) == 0) {
+        return STATUS_INVALID_IMAGE_FORMAT;
+    }
+
+    FirmwareState->LoadedMask |= bit;
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS
 Bc250FirmwareCommitReady(
     _Inout_ BC250_HW_STATE* HwState,
     _In_ const BC250_FIRMWARE_STATE* FirmwareState
