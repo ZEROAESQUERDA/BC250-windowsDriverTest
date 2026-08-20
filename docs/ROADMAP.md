@@ -12,35 +12,39 @@ Compilar a solução com Visual Studio, WDK e MSBuild em Windows 10 x64. Instala
 
 Confirmar os IDs PCI, a revisão e os recursos traduzidos por PnP. Manter a BAR5 do mailbox SMN separada da BAR candidata de registradores GC/SDMA. Registrar tamanho/endereço dos recursos e recusar acessos fora das regiões fornecidas pelo Windows.
 
-## Marco 2 — Firmware e estado D0
+## Marco 2 — PSP GPCOM, attestation e TMR
 
-Integrar o carregamento efetivo de CP/SDMA através da sequência suportada pelo PSP/boot firmware, ou demonstrar por registradores e logs que o firmware já está carregado. Sair de GFXOFF de forma observável, manter a placa em D0 estável e só então permitir programação de engine. D1/D2/D3, ULPS e power gating ficam fora deste marco.
+Executar primeiro o caminho PSP KM/GPCOM com a base MP0 `0x58000` e C2PMSG `64/67/69/70/71/81`, inicialmente apenas com `GET_FW_ATTESTATION`. Depois validar a fence PSP, `SETUP_TMR` e a separação entre endereço GPU/MC e endereço físico de sistema. Os gates `BC250_PSP_RING_VALIDATED` e `BC250_PSP_HDP_OFFSETS_VALIDATED` continuam fechados até esses passos serem observados na BC-250 real.
 
-## Marco 3 — Ring e fence mínimos
+## Marco 3 — Firmware e estado D0
+
+Integrar `LOAD_IP_FW` por tipo de firmware através do ring PSP, marcar `LoadedMask` somente após resposta positiva e demonstrar por logs quando algum componente já veio carregado pelo boot firmware. Sair de GFXOFF de forma observável, manter a placa em D0 estável e só então permitir programação de engine. D1/D2/D3, ULPS e power gating ficam fora deste marco.
+
+## Marco 4 — Ring e fence mínimos
 
 Executar primeiro um teste pequeno no KMD: NOP, `WRITE_DATA` GPU-side para uma fence, leitura CPU do buffer, interrupção EOP/IH e repetição. A fence só pode ser considerada concluída quando a GPU escrever o valor. O reset precisa invalidar o estado e impedir que o scheduler veja progresso falso.
 
-## Marco 4 — GPUVM e memória UMA mínima
+## Marco 5 — GPUVM e memória UMA mínima
 
 Começar com uma política simples de system-memory/aperture, um VMID e page tables suficientes para um buffer linear. Só anunciar uma faixa UMA-like local quando a reserva física e a visibilidade GPU forem descobertas. Residency, eviction, TLB invalidation, cache management e GPU virtual address precisam ser implementados antes de workloads maiores.
 
-## Marco 5 — Operações de buffer no KMD
+## Marco 6 — Operações de buffer no KMD
 
 Implementar e testar uma operação pequena de copy/clear usando allocations, endereços e fences reais. `Render`, `Patch`, `BuildPagingBuffer` e `SubmitCommand` devem traduzir apenas comandos que o KMD consegue validar e executar. Operações ainda não implementadas devem falhar explicitamente, e não retornar sucesso vazio.
 
-## Marco 6 — MVP D3D11 limitado
+## Marco 7 — MVP D3D11 limitado
 
 Depois do KMD, construir um UMD D3D11 pequeno e coerente para buffers lineares, upload/copy, um clear simples, resource views mínimos e sincronização. O objetivo de saída deste marco é um triângulo simples ou, antes dele, um clear verificável em uma BC-250 real. A tabela DDI precisa corresponder ao header WDK do Windows 10 alvo; casts entre D3D11 e D3D10 não substituem a ABI correta.
 
-## Marco 7 — DXGI e apresentação
+## Marco 8 — DXGI e apresentação
 
 Implementar adapter enumeration, formatos realmente suportados, swapchain, Present, page flip, VSync, EDID, HPD e modeset somente depois que memória e fences estiverem estáveis. A árvore atual possui callbacks de display, mas isso não deve ser confundido com DisplayPort funcional.
 
-## Marco 8 — D3D12
+## Marco 9 — D3D12
 
 Deixar D3D12 para depois de GPUVM, command queues, fences, heaps, resource states, device removal e sincronização estarem maduros. O export `OpenAdapter12` sozinho não constitui suporte D3D12.
 
-## Marco 9 — Vulkan e power avançado
+## Marco 10 — Vulkan e power avançado
 
 Vulkan, VCN, múltiplos monitores, hotplug sofisticado, D3D12 completo, D1/D2/D3 e ULPS só entram depois do MVP D3D11. A possibilidade de estudar NIR e o backend AMDGPU/Mesa é interessante, mas ainda seria necessário construir a camada UMD Windows e validar a ISA/ABI específica da GPU.
 
@@ -54,6 +58,8 @@ Eu só avanço de marco depois de compilar, instalar e observar o comportamento 
 [2]: https://learn.microsoft.com/en-us/windows-hardware/drivers/display/initializing-use-of-memory-segments "Microsoft Learn — Initializing use of memory segments"
 [3]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd "amdgpu no kernel Linux"
 [4]: https://docs.mesa3d.org/ "Documentação do Mesa"
+[5]: https://github.com/Keshas-dev/AMD-BC-250-Windows-Driver/blob/main/docs/PSP-GPCOM-RING-WORKING.md "Referência externa do PSP KM/GPCOM ring"
+[6]: https://github.com/Keshas-dev/AMD-BC-250-Windows-Driver/blob/main/AGENTS.md "Resultados externos de PSP, firmware e SETUP_TMR"
 
 ## Autor
 
