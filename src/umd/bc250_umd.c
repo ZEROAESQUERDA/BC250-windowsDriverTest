@@ -252,8 +252,10 @@ OpenAdapter11(
     _Inout_ D3D11DDIARG_OPENADAPTER* OpenAdapterData
     )
 {
-    return Bc250UmdOpenAdapter10Impl(
-        (D3D10DDIARG_OPENADAPTER*)OpenAdapterData);
+    /* D3D11 has a distinct adapter ABI. Do not reinterpret it as D3D10
+     * until a real D3D11 header/table implementation is present. */
+    UNREFERENCED_PARAMETER(OpenAdapterData);
+    return E_NOTIMPL;
 }
 
 __declspec(dllexport) HRESULT APIENTRY
