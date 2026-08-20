@@ -5,11 +5,15 @@
  * SDMA5 headers. Linux multiplies these indices by four for byte MMIO offsets.
  * Cyan Skillfish2 has a distinct IP offset table; these family-level candidate
  * values are used by the experimental bring-up.
- * They are enabled by BC250_GFX_OFFSETS_VALIDATED=1 and must be tested on a
- * real Cyan Skillfish2 device before production deployment.
+ * They remain candidates until the real Cyan Skillfish2 IP offset table and
+ * firmware sequence have been confirmed on hardware. The project can still
+ * allocate and inspect ring memory while this gate is disabled.
  */
 
-#define BC250_GFX_OFFSETS_VALIDATED 1
+#define BC250_GFX_OFFSETS_CANDIDATE 1
+#ifndef BC250_GFX_OFFSETS_VALIDATED
+#define BC250_GFX_OFFSETS_VALIDATED 0
+#endif
 
 #define BC250_GC_MMIO_REG(_index) ((_index) * 4u)
 
@@ -40,7 +44,18 @@
 /* The GFX ring control value is not synthesized until the ASIC bitfields are
  * validated. These masks are deliberately absent to prevent unsafe writes. */
 
-/* Interrupt status/ack offsets remain unknown for Cyan Skillfish2. */
-#define BC250_GFX_INTERRUPT_OFFSETS_VALIDATED 1
+/* Interrupt status/ack offsets remain unknown for Cyan Skillfish2. Never
+ * enable the ISR against offset zero; the real IH/EOP table is still needed. */
+#ifndef BC250_GFX_INTERRUPT_OFFSETS_VALIDATED
+#define BC250_GFX_INTERRUPT_OFFSETS_VALIDATED 0
+#endif
 #define BC250_GFX_INTERRUPT_STATUS_OFFSET    0u
 #define BC250_GFX_INTERRUPT_ACK_OFFSET       0u
+
+/* PM4 WRITE_DATA fields used by the GFX10 fence test path. The async memory
+ * destination is the form used by amdgpu for a GPU writeback fence. */
+#define BC250_PM4_WRITE_DATA_DST_SEL_MEMORY_ASYNC (5u << 8)
+#define BC250_PM4_WRITE_DATA_WR_CONFIRM           (1u << 20)
+#define BC250_PM4_WRITE_DATA_FENCE_CONTROL \
+    (BC250_PM4_WRITE_DATA_DST_SEL_MEMORY_ASYNC | \
+     BC250_PM4_WRITE_DATA_WR_CONFIRM)
