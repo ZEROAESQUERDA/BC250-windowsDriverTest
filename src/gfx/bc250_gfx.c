@@ -469,7 +469,7 @@ Bc250SubmitDmaBuffer(
 
     /* PACKET3(WRITE_DATA): let the GPU signal completion in the fence buffer. */
     fencePacket[0] = 0xC0000000u | (0x37u << 8) | 4u;
-    fencePacket[1] = 0x00000001u; /* destination: memory, write-confirmed data */
+    fencePacket[1] = BC250_PM4_WRITE_DATA_FENCE_CONTROL;
     fencePacket[2] = (ULONG)(engine->Fence.PhysicalAddress.QuadPart & 0xFFFFFFFFull);
     fencePacket[3] = (ULONG)((ULONGLONG)engine->Fence.PhysicalAddress.QuadPart >> 32);
     fencePacket[4] = fenceValue;
