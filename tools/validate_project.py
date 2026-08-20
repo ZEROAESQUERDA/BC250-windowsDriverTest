@@ -29,7 +29,7 @@ for rel in required:
         errors.append(f"arquivo ausente: {rel}")
 
 checks = {
-    "bc250_kmd.vcxproj": ["BC250_ENABLE_FULL_WDDM=1", "BC250_GFX_OFFSETS_VALIDATED=1", "BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=1"],
+    "bc250_kmd.vcxproj": ["BC250_ENABLE_FULL_WDDM=1", "BC250_GFX_OFFSETS_VALIDATED=0", "BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0"],
     "bc250_umd.vcxproj": ["BC250_ENABLE_DX_UMD=1"],
     "src/kmd/bc250_full_wddm.hxx": ["#define BC250_ENABLE_FULL_WDDM 1"],
     "src/umd/bc250_umd.c": ["OpenAdapter10", "OpenAdapter11", "OpenAdapter12", "Bc250UmdOpenAdapter12Impl"],
@@ -59,5 +59,5 @@ print("VALIDATION_OK")
 print(f"root={root}")
 print("xml=ok")
 print("required_files=ok")
-print("activation_gates=ok")
+print("activation_gates=ok (full-WDDM ativo; offsets de engine/IH aguardam validação)")
 print("inf_umd_registration=ok")
