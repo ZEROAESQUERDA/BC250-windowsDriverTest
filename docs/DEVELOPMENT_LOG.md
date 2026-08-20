@@ -43,3 +43,12 @@ A próxima etapa é compilar a solução em uma máquina Windows 10 x64 com WDK,
 ## Autor
 
 **ZEROAESQUERDA**
+
+
+## Revisão posterior da estratégia
+
+Recebi uma segunda análise externa do projeto e usei o texto para conferir se a documentação estava prometendo mais do que o código entrega. A análise acertou ao recomendar um caminho menor: primeiro firmware/CP, ring, fence, interrupção, reset e GPUVM; depois um MVP D3D11 com buffer, clear e um triângulo simples; D3D12, Vulkan e power management avançado ficam para depois.
+
+Também corrigi o roadmap para refletir essa ordem. Não considero a presença dos exports `OpenAdapter*`, dos headers ou dos arquivos de firmware uma prova de que DirectX, DisplayPort ou microcode já funcionam. Eu prefiro manter o repositório explícito sobre o que foi realmente implementado, porque isso torna os próximos testes muito mais fáceis de interpretar.
+
+**Autor:** ZEROAESQUERDA
