@@ -27,6 +27,23 @@ Os blobs públicos Cyan Skillfish2 usados como referência ficam em `firmware/am
 
 A presença dos blobs no repositório, sozinha, não marca o KMD como pronto. `Bc250FirmwareMarkLoaded` só aceita uma imagem que já passou pela validação, e o commit para `FirmwareReady` exige o `LoadedMask` completo dos componentes obrigatórios. A integração real do carregamento pelo PSP/CP/SDMA ainda precisa ser concluída e confirmada em hardware.
 
+## PSP GPCOM e evolução do carregamento de firmware
+
+Eu incorporei ao projeto a referência técnica mais importante encontrada no repositório externo da BC-250: o caminho **PSP KM/GPCOM ring**. A documentação externa relata uma BC-250 real aceitando `GET_FW_ATTESTATION` pelo ring, com fence alcançada e avanço do WPTR. A base MP0 documentada é `0x58000` em bytes dentro da BAR5; os offsets C2PMSG usados pelo módulo estão reunidos em `src/firmware/bc250_psp.h`. [8] [9]
+
+O novo módulo `bc250_psp.c` não substitui o KMD nem habilita GFX automaticamente. Ele separa a preparação do ring, a submissão da frame PSP de 64 bytes, a fence, `SETUP_TMR` e `LOAD_IP_FW`. O estado mantém os buffers contíguos, o WPTR, o valor de fence, a última resposta, o timeout e uma área de firmware que não pode ser liberada prematuramente caso o PSP ainda esteja fazendo DMA.
+
+| Gate | Estado atual | Consequência |
+|---|---:|---|
+| `BC250_PSP_RING_VALIDATED` | `0` | O StartDevice prepara a estrutura PSP, mas não escreve C2PMSG nem tenta criar o ring. |
+| `BC250_PSP_HDP_OFFSETS_VALIDATED` | `0` | O flush HDP não escreve os offsets candidatos; somente barreira de memória é aplicada. |
+| `BC250_GFX_OFFSETS_VALIDATED` | `0` | O ring PSP não libera os engines GFX/SDMA. |
+| `BC250_GFX_INTERRUPT_OFFSETS_VALIDATED` | `0` | O ring PSP não libera ISR/IH/EOP. |
+
+A sequência planejada é `GET_FW_ATTESTATION`, depois `SETUP_TMR` e só então `LOAD_IP_FW` por tipo de firmware. `Bc250FirmwareMarkLoaded` continua sendo chamado somente depois de uma resposta PSP positiva para a imagem específica; um blob presente ou uma submissão aceita não é confundido com firmware carregado. No caso de `SETUP_TMR`, a API exige que o endereço GPU/MC e o endereço físico de sistema sejam fornecidos separadamente e sejam diferentes. Eu não transformei o endereço de VRAM observado externamente em uma constante universal, porque a descoberta runtime e o orçamento UMA precisam ser confirmados na placa usada.
+
+O relatório externo também mostra que o SOS pode responder “unknown command”, “not supported” ou “already loaded” para tipos diferentes. Por isso, o módulo registra a resposta sem marcar todos os componentes como prontos. A existência da implementação PSP melhora o próximo bring-up, mas ainda não significa que o KMD atual carregue CP/SDMA durante o StartDevice.
+
 ## GFX, offsets e interrupções
 
 A tabela de registradores em `src/gfx/bc250_gfx_regs.h` é uma referência de família GC10/SDMA5 baseada no amdgpu, não uma confirmação da revisão física da BC-250. Por isso, os dois gates ficam explicitamente desativados nas configurações Debug e Release:
@@ -69,7 +86,7 @@ driver_bc250/
 │   └── bc250_umd.inf
 ├── src/
 │   ├── hw/              # BARs, MMIO e descoberta runtime
-│   ├── firmware/        # nomes, validação e estados do firmware
+│   ├── firmware/        # firmware, validação, estados e PSP GPCOM gated
 │   ├── smu/             # mailbox SMN e consultas SMU
 │   ├── memory/          # perfil UMA/aperture e VidMm
 │   ├── gfx/             # engines, rings, fences e offsets candidatos
@@ -89,7 +106,7 @@ cd driver_bc250
 msbuild bc250_kmd.sln /m /p:Configuration=Release /p:Platform=x64
 ```
 
-Os projetos mantêm `BC250_ENABLE_FULL_WDDM=1` e `BC250_ENABLE_DX_UMD=1` em Debug e Release. Já `BC250_GFX_OFFSETS_VALIDATED=0` e `BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0` permanecem em zero nas duas configurações. O script `tools/validate_project.py` verifica o XML, os arquivos críticos, os gates e o registro do UMD, mas não substitui a compilação do WDK.
+Os projetos mantêm `BC250_ENABLE_FULL_WDDM=1` e `BC250_ENABLE_DX_UMD=1` em Debug e Release. Já `BC250_GFX_OFFSETS_VALIDATED=0`, `BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0`, `BC250_PSP_RING_VALIDATED=0` e `BC250_PSP_HDP_OFFSETS_VALIDATED=0` permanecem em zero nas duas configurações. O script `tools/validate_project.py` verifica o XML, os arquivos críticos, os gates e o registro do UMD, mas não substitui a compilação do WDK.
 
 Para instalar em uma máquina de teste, primeiro é necessário assinar os binários de acordo com a política do Windows 10, habilitar test signing quando apropriado e instalar o INF com privilégios administrativos. Eu não recomendo instalar o driver em um sistema de trabalho antes de ter uma forma de recuperar o dispositivo caso o bring-up gere TDR.
 
@@ -108,6 +125,8 @@ Depois do hardware básico, ainda preciso validar o caminho de GPUVM/page tables
 [5]: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3d10umddi/ "Referência D3D10UMDDI do WDK"
 [6]: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3d12umddi/ "Referência D3D12UMDDI do WDK"
 [7]: https://github.com/tpn/winsdk-10/tree/master/Include/10.0.10240.0/um "Snapshot público de headers UMD do Windows SDK"
+[8]: https://github.com/Keshas-dev/AMD-BC-250-Windows-Driver/blob/main/docs/PSP-GPCOM-RING-WORKING.md "Referência externa do PSP KM/GPCOM ring"
+[9]: https://github.com/Keshas-dev/AMD-BC-250-Windows-Driver/blob/main/AGENTS.md "Resultados externos de PSP, firmware e SETUP_TMR"
 
 ## Autor
 
