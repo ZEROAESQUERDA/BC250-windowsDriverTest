@@ -48,3 +48,14 @@ Eu deixei o callback de power aceitar somente D0. Transições D1, D2 e D3 agora
 Também removi o cast que reinterpretava `D3D11DDIARG_OPENADAPTER` como uma estrutura D3D10. O export `OpenAdapter11` continua presente para deixar a fronteira identificável, mas retorna `E_NOTIMPL` até existir uma tabela baseada na ABI D3D11 correta. Um cast entre DDIs diferentes poderia corromper campos e tornar o diagnóstico muito mais difícil.
 
 **Autor:** ZEROAESQUERDA
+
+
+## Correções implementadas depois desta análise
+
+Eu corrigi um ponto perigoso que a leitura histórica ajudou a destacar. A tabela de offsets GC/SDMA era candidata, mas os projetos Debug/Release ainda compilavam com `BC250_GFX_OFFSETS_VALIDATED=1` e `BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=1`. Como os offsets de IH estavam zerados, isso poderia levar o ISR a tocar o registrador 0. Agora os dois gates ficam em zero; a tabela continua no repositório como referência, mas não é tratada como validação Cyan Skillfish2.
+
+Também corrigi o controle do pacote `WRITE_DATA`. O fence usa agora constantes nomeadas para `WRITE_DATA_DST_SEL(5) | WR_CONFIRM`, seguindo a forma do teste de fence GFX10 no amdgpu, em vez do controle genérico usado antes. Isso ainda precisa de confirmação no hardware real, mas o pacote está mais próximo da semântica upstream.
+
+Por fim, acrescentei `Bc250FirmwareMarkLoaded`. A validação de uma imagem não altera mais implicitamente o estado carregado: o loader futuro precisa chamar essa API somente depois de transferir o microcode com sucesso. `Bc250FirmwareCommitReady` continua exigindo que todos os bits obrigatórios estejam em `LoadedMask`.
+
+**Autor:** ZEROAESQUERDA
