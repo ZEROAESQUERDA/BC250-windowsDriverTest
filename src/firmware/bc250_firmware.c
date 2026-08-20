@@ -198,6 +198,8 @@ Bc250FirmwareCommitReady(
         !FirmwareState->VariantMatches ||
         !FirmwareState->AllRequiredPresent ||
         !FirmwareState->AllRequiredValid ||
+        (FirmwareState->LoadedMask & FirmwareState->RequiredMask) !=
+            FirmwareState->RequiredMask ||
         !FirmwareState->DiscoveryValid) {
         return STATUS_DEVICE_NOT_READY;
     }

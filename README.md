@@ -12,7 +12,9 @@ O projeto contém um KMD Windows com `DRIVER_INITIALIZATION_DATA` e `DxgkInitial
 
 Também existe um UMD separado. Ele exporta as entradas `OpenAdapter`, `OpenAdapter10`, `OpenAdapter10_2`, `OpenAdapter11` e `OpenAdapter12`, com tabelas mínimas para permitir o bring-up da fronteira DirectX. As tabelas completas de recursos, shaders, estados, command lists, heaps, root signatures, PSO e sincronização ainda não estão implementadas; preencher apenas o nome do export não seria suficiente para oferecer uma implementação real de D3D10–D3D12.
 
-Os blobs públicos Cyan Skillfish2 usados como referência ficam em `firmware/amdgpu/`, acompanhados por `firmware/manifest.txt` com tamanho e SHA-256. O projeto não tenta fingir que o firmware foi carregado pelo PSP/CP apenas porque os arquivos estão presentes: o carregamento efetivo ainda precisa ser integrado ao fluxo de inicialização do hardware.
+Os blobs públicos Cyan Skillfish2 usados como referência ficam em `firmware/amdgpu/`, acompanhados por `firmware/manifest.txt` com tamanho e SHA-256. Depois da auditoria, retirei as flags que faziam o KMD tratar esses arquivos como carregados apenas porque estavam no repositório. A validação de imagem e o carregamento pelo PSP/CP são etapas diferentes; o fluxo efetivo de firmware ainda precisa ser integrado ao hardware.
+
+Também corrigi a conclusão de fence. O submit agora coloca no ring um `INDIRECT_BUFFER` seguido de um `WRITE_DATA` candidato para que a própria GPU escreva a fence. O CPU não grava mais uma conclusão imediatamente após o WPTR. Fill/Discard/Map/Unmap de paging que ainda não possuem execução real retornam erro explícito, e os caminhos UMD que não têm tabelas completas retornam `E_NOTIMPL` em vez de anunciar uma capacidade que não conseguem cumprir.
 
 ## Organização do repositório
 
@@ -59,7 +61,7 @@ Para instalar em uma máquina de teste, primeiro é necessário assinar os biná
 
 ## O que eu verifico antes de considerar um avanço
 
-A primeira verificação é estrutural: XML dos projetos, `git diff --check`, presença dos blobs e hashes do manifesto. A segunda é a compilação real no Visual Studio/WDK. A terceira acontece somente em uma BC-250: BARs traduzidas, leitura dos registradores, estado do SMU, clocks fora de GFXOFF, microcode do CP, programação do ring, wrap do WPTR, fences, interrupções e reset/TDR.
+A primeira verificação é estrutural: XML dos projetos, `git diff --check`, presença dos blobs e hashes do manifesto. A segunda é a compilação real no Visual Studio/WDK. A terceira acontece somente em uma BC-250: BARs traduzidas, leitura dos registradores, estado do SMU, clocks fora de GFXOFF, carregamento do microcode do CP, programação do ring, wrap do WPTR, fence escrita pela GPU, interrupção EOP/IH e reset/TDR. Sem esse teste, eu considero o port corrigido no nível de semântica e estrutura, mas ainda não comprovado como acelerador.
 
 Só depois dessas etapas faz sentido avaliar aplicações DirectX. O UMD atual deixa a fronteira aberta para continuar o desenvolvimento, mas não deve anunciar uma implementação completa de D3D9–D3D12 enquanto as tabelas de funções e a tradução de comandos não estiverem preenchidas.
 

@@ -425,7 +425,10 @@ Bc250SubmitDmaBuffer(
     ULONG writePointer;
     ULONG payloadDwords;
     ULONG fenceValue;
-    ULONG packet[4];
+    ULONG ibPacket[4];
+    ULONG fencePacket[6];
+    ULONG index;
+    ULONG nextPointer;
     NTSTATUS status;
 
     if (HwState == NULL || GfxState == NULL ||
@@ -436,7 +439,9 @@ Bc250SubmitDmaBuffer(
 
     engine = Bc250FindEngine(GfxState, Bc250EngineGfx);
     if (engine == NULL || !engine->ResourcesAllocated ||
-        engine->RingCpuAddress == NULL || !engine->HardwareEnabled) {
+        engine->RingCpuAddress == NULL || !engine->HardwareEnabled ||
+        engine->Fence.CpuAddress == NULL ||
+        engine->Fence.PhysicalAddress.QuadPart == 0) {
         return STATUS_DEVICE_NOT_READY;
     }
 
@@ -449,37 +454,49 @@ Bc250SubmitDmaBuffer(
         return STATUS_INVALID_BUFFER_SIZE;
     }
 
-    /* PM4 PACKET3(INDIRECT_BUFFER, 2): base low, base high and control. */
-    packet[0] = 0xC0000000u | (0x3Fu << 8) | 2u;
-    packet[1] = (ULONG)((ULONGLONG)DmaBufferPhysicalAddress.QuadPart +
-                        SubmissionStartOffset) >> 2;
-    packet[2] = (ULONG)(((ULONGLONG)DmaBufferPhysicalAddress.QuadPart +
-                        SubmissionStartOffset) >> 34);
-    packet[3] = payloadDwords;
+    fenceValue = FenceId != 0 ? FenceId : (ULONG)engine->Fence.NextValue;
+    if ((ULONG64)fenceValue < engine->Fence.NextValue) {
+        fenceValue = (ULONG)engine->Fence.NextValue;
+    }
+
+    /* PACKET3(INDIRECT_BUFFER): execute the DMA buffer supplied by VidSch. */
+    ibPacket[0] = 0xC0000000u | (0x3Fu << 8) | 2u;
+    ibPacket[1] = (ULONG)((ULONGLONG)DmaBufferPhysicalAddress.QuadPart +
+                          SubmissionStartOffset) >> 2;
+    ibPacket[2] = (ULONG)(((ULONGLONG)DmaBufferPhysicalAddress.QuadPart +
+                           SubmissionStartOffset) >> 34);
+    ibPacket[3] = payloadDwords;
+
+    /* PACKET3(WRITE_DATA): let the GPU signal completion in the fence buffer. */
+    fencePacket[0] = 0xC0000000u | (0x37u << 8) | 4u;
+    fencePacket[1] = 0x00000001u; /* destination: memory, write-confirmed data */
+    fencePacket[2] = (ULONG)(engine->Fence.PhysicalAddress.QuadPart & 0xFFFFFFFFull);
+    fencePacket[3] = (ULONG)((ULONGLONG)engine->Fence.PhysicalAddress.QuadPart >> 32);
+    fencePacket[4] = fenceValue;
+    fencePacket[5] = 0;
 
     writePointer = engine->RingWritePointer & (BC250_GFX_RING_DWORDS - 1u);
-    engine->RingCpuAddress[writePointer] = packet[0];
-    engine->RingCpuAddress[(writePointer + 1u) & (BC250_GFX_RING_DWORDS - 1u)] = packet[1];
-    engine->RingCpuAddress[(writePointer + 2u) & (BC250_GFX_RING_DWORDS - 1u)] = packet[2];
-    engine->RingCpuAddress[(writePointer + 3u) & (BC250_GFX_RING_DWORDS - 1u)] = packet[3];
+    for (index = 0; index < RTL_NUMBER_OF(ibPacket); ++index) {
+        engine->RingCpuAddress[(writePointer + index) &
+                               (BC250_GFX_RING_DWORDS - 1u)] = ibPacket[index];
+    }
+    for (index = 0; index < RTL_NUMBER_OF(fencePacket); ++index) {
+        engine->RingCpuAddress[(writePointer + RTL_NUMBER_OF(ibPacket) + index) &
+                               (BC250_GFX_RING_DWORDS - 1u)] = fencePacket[index];
+    }
     KeMemoryBarrier();
 
-    engine->RingWritePointer =
-        (writePointer + RTL_NUMBER_OF(packet)) & (BC250_GFX_RING_DWORDS - 1u);
-    status = Bc250WriteRegister32(
-        HwState,
-        engine->WptrOffset,
-        engine->RingWritePointer);
+    nextPointer = (writePointer + RTL_NUMBER_OF(ibPacket) +
+                   RTL_NUMBER_OF(fencePacket)) &
+                  (BC250_GFX_RING_DWORDS - 1u);
+    engine->RingWritePointer = nextPointer;
+    engine->Fence.NextValue = (ULONG64)fenceValue + 1;
+    status = Bc250WriteRegister32(HwState, engine->WptrOffset, nextPointer);
     if (!NT_SUCCESS(status)) {
         return status;
     }
 
-    fenceValue = FenceId != 0 ? FenceId : (ULONG)engine->Fence.NextValue;
-    engine->Fence.NextValue = (ULONG64)fenceValue + 1;
-    if (engine->Fence.CpuAddress != NULL) {
-        InterlockedExchange64(
-            (volatile LONG64*)engine->Fence.CpuAddress,
-            (LONG64)fenceValue);
-    }
+    /* Do not write the completion value from the CPU. QueryCurrentFence and
+     * the DPC observe only the value written by the GPU-side WRITE_DATA packet. */
     return STATUS_SUCCESS;
 }

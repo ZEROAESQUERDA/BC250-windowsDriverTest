@@ -474,21 +474,18 @@ Bc250FullDdiBuildPagingBuffer(
                 BuildPagingBuffer->Transfer.TransferSize);
             return STATUS_SUCCESS;
         }
-        return STATUS_SUCCESS;
+        return STATUS_NOT_SUPPORTED;
 
     case DXGK_OPERATION_FILL:
-        if (BuildPagingBuffer->Fill.Destination.SegmentId == 0) {
-            return STATUS_SUCCESS;
-        }
-        return STATUS_SUCCESS;
+        return STATUS_NOT_SUPPORTED;
 
     case DXGK_OPERATION_DISCARD_CONTENT:
     case DXGK_OPERATION_MAP_APERTURE_SEGMENT:
     case DXGK_OPERATION_UNMAP_APERTURE_SEGMENT:
-        return STATUS_SUCCESS;
+        return STATUS_NOT_SUPPORTED;
 
     default:
-        return STATUS_SUCCESS;
+        return STATUS_NOT_SUPPORTED;
     }
 }
 
@@ -581,6 +578,10 @@ Bc250FullDdiResetFromTimeout(
         return STATUS_INVALID_HANDLE;
     }
 
+    adapter->Gfx.InterruptsEnabled = FALSE;
+    adapter->Hw.GfxReady = FALSE;
+    adapter->Hw.AllowRegisterWrites = FALSE;
+
     for (index = 0; index < adapter->Gfx.EngineCount; ++index) {
         BC250_GFX_ENGINE* engine = &adapter->Gfx.Engines[index];
         engine->RingWritePointer = 0;
@@ -596,6 +597,7 @@ Bc250FullDdiResetFromTimeout(
                 0);
         }
     }
+    adapter->DeviceStarted = FALSE;
     return STATUS_SUCCESS;
 }
 
@@ -604,7 +606,17 @@ Bc250FullDdiRestartFromTimeout(
     _In_ CONST HANDLE Adapter
     )
 {
-    return Bc250FullDdiResetFromTimeout(Adapter);
+    BC250_DEVICE_CONTEXT* adapter =
+        reinterpret_cast<BC250_DEVICE_CONTEXT*>(const_cast<PVOID>(Adapter));
+
+    if (adapter == NULL) {
+        return STATUS_INVALID_HANDLE;
+    }
+    if (!adapter->Hw.FirmwareReady || !adapter->Gfx.FirmwareLoaded) {
+        return STATUS_DEVICE_NOT_READY;
+    }
+
+    return Bc250ProgramGfxRings(&adapter->Hw, &adapter->Gfx);
 }
 
 NTSTATUS APIENTRY

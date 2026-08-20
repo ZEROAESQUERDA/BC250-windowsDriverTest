@@ -44,11 +44,8 @@ Bc250UmdGetCaps(
         return E_INVALIDARG;
     }
 
-    if (Caps->pData != NULL && Caps->DataSize != 0) {
-        ZeroMemory(Caps->pData, Caps->DataSize);
-    }
-
-    return S_OK;
+    UNREFERENCED_PARAMETER(Caps);
+    return E_NOTIMPL;
 }
 
 static SIZE_T APIENTRY
@@ -91,18 +88,9 @@ Bc250UmdCreateDevice(
         return E_INVALIDARG;
     }
 
-    device = (PBC250_UMD_DEVICE)HeapAlloc(
-        GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*device));
-    if (device == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    device->Adapter = adapter;
-    InitializeCriticalSection(&device->Lock);
-    CreateData->hDevice = (D3DDDI_HDEVICE)device;
-    CreateData->pDeviceFuncs->pfnDestroyDevice = Bc250UmdDestroyDevice;
-
-    return S_OK;
+    UNREFERENCED_PARAMETER(adapter);
+    UNREFERENCED_PARAMETER(CreateData);
+    return E_NOTIMPL;
 }
 
 static VOID APIENTRY
@@ -141,16 +129,9 @@ Bc250UmdCreateDevice10(
         return E_INVALIDARG;
     }
 
-    device = (PBC250_UMD_DEVICE)HeapAlloc(
-        GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*device));
-    if (device == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    InitializeCriticalSection(&device->Lock);
-    CreateData->hDrvDevice.pDrvPrivate = device;
-    CreateData->pDeviceFuncs->pfnDestroyDevice = Bc250UmdDestroyDevice10;
-    return S_OK;
+    UNREFERENCED_PARAMETER(Adapter);
+    UNREFERENCED_PARAMETER(CreateData);
+    return E_NOTIMPL;
 }
 
 static HRESULT APIENTRY
@@ -302,7 +283,7 @@ Bc250UmdCreateDevice12(
 {
     UNREFERENCED_PARAMETER(Adapter);
     UNREFERENCED_PARAMETER(CreateData);
-    return S_OK;
+    return E_NOTIMPL;
 }
 
 static HRESULT APIENTRY
@@ -315,10 +296,8 @@ Bc250UmdGetCaps12(
     if (Caps == NULL || (Caps->DataSize != 0 && Caps->pData == NULL)) {
         return E_INVALIDARG;
     }
-    if (Caps->pData != NULL && Caps->DataSize != 0) {
-        ZeroMemory(Caps->pData, Caps->DataSize);
-    }
-    return S_OK;
+    UNREFERENCED_PARAMETER(Caps);
+    return E_NOTIMPL;
 }
 
 static HRESULT APIENTRY
@@ -332,11 +311,9 @@ Bc250UmdGetSupportedVersions12(
     if (EntryCount == NULL) {
         return E_INVALIDARG;
     }
-    if (Versions != NULL && *EntryCount != 0) {
-        Versions[0] = 1;
-    }
-    *EntryCount = 1;
-    return S_OK;
+    UNREFERENCED_PARAMETER(Versions);
+    *EntryCount = 0;
+    return E_NOTIMPL;
 }
 
 static VOID APIENTRY

@@ -295,19 +295,17 @@ Bc250DdiStartDevice(
         return status;
     }
 
-    /* Experimental acceleration mode requested by the project configuration. */
-    context->Gfx.FirmwareLoaded = TRUE;
-    context->Hw.FirmwareReady = TRUE;
-    context->Hw.AllowRegisterWrites = TRUE;
-    context->Hw.GfxReady = TRUE;
-    context->Gfx.InterruptsEnabled = TRUE;
+    /* The public blobs are packaged and validated separately, but this KMD
+     * does not yet load CP/SDMA firmware through PSP. Do not claim that the
+     * engines or their fences are live merely because ring memory exists. */
+    context->Gfx.FirmwareLoaded = FALSE;
+    context->Hw.FirmwareReady = FALSE;
+    context->Hw.AllowRegisterWrites = FALSE;
+    context->Hw.GfxReady = FALSE;
+    context->Gfx.InterruptsEnabled = FALSE;
 
-    status = Bc250ProgramGfxRings(&context->Hw, &context->Gfx);
-    if (!NT_SUCCESS(status)) {
-        BC250_LOG1(DPFLTR_WARNING_LEVEL,
-                   "Programacao experimental de rings retornou: 0x%08X",
-                   status);
-    }
+    BC250_LOG0(DPFLTR_WARNING_LEVEL,
+               "Rings preparados; firmware CP/SDMA ainda nao foi carregado, aceleracao permanece pendente");
 
     *NumberOfViews = 0;
     *NumberOfChildren = 0;
