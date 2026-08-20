@@ -11,6 +11,7 @@ extern "C" {
 #include "../gfx/bc250_gfx.h"
 #include "../smu/bc250_smu.h"
 #include "../firmware/bc250_firmware.h"
+#include "../firmware/bc250_psp.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,6 +36,7 @@ typedef struct _BC250_DEVICE_CONTEXT {
     BC250_GFX_STATE Gfx;
     BC250_SMU_STATE Smu;
     BC250_FIRMWARE_STATE Firmware;
+    BC250_PSP_STATE Psp;
     volatile LONG InterruptPending;
     ULONG PendingEngineMask;
     ULONG LastInterruptMessage;
