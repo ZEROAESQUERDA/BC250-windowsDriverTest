@@ -580,7 +580,10 @@ Bc250FullDdiResetFromTimeout(
 
     adapter->Gfx.InterruptsEnabled = FALSE;
     adapter->Hw.GfxReady = FALSE;
+    adapter->Hw.PspReady = FALSE;
     adapter->Hw.AllowRegisterWrites = FALSE;
+    adapter->Psp.SubmissionFaulted = TRUE;
+    adapter->Psp.RingCreated = FALSE;
 
     for (index = 0; index < adapter->Gfx.EngineCount; ++index) {
         BC250_GFX_ENGINE* engine = &adapter->Gfx.Engines[index];
@@ -612,7 +615,8 @@ Bc250FullDdiRestartFromTimeout(
     if (adapter == NULL) {
         return STATUS_INVALID_HANDLE;
     }
-    if (!adapter->Hw.FirmwareReady || !adapter->Gfx.FirmwareLoaded) {
+    if (!adapter->Hw.FirmwareReady || !adapter->Gfx.FirmwareLoaded ||
+        adapter->Psp.SubmissionFaulted) {
         return STATUS_DEVICE_NOT_READY;
     }
 
