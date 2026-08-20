@@ -43,7 +43,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
-      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=0;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=0;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0;BC250_PSP_RING_VALIDATED=0;BC250_PSP_HDP_OFFSETS_VALIDATED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(DDK_INC_PATH);$(SDK_INC_PATH);$(ProjectDir)src\kmd;$(ProjectDir)src\hw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling></ExceptionHandling>
       <CompileAs>Default</CompileAs>
@@ -61,7 +61,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
-      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;NDEBUG;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=0;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_AMD64_;AMD64;NTDDI_VERSION=0x0A000008;WINVER=0x0A00;NDEBUG;BC250_ENABLE_FULL_WDDM=1;BC250_GFX_OFFSETS_VALIDATED=0;BC250_GFX_INTERRUPT_OFFSETS_VALIDATED=0;BC250_PSP_RING_VALIDATED=0;BC250_PSP_HDP_OFFSETS_VALIDATED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(DDK_INC_PATH);$(SDK_INC_PATH);$(ProjectDir)src\kmd;$(ProjectDir)src\hw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling></ExceptionHandling>
       <CompileAs>Default</CompileAs>
@@ -87,6 +87,7 @@
     <ClCompile Include="src\kmd\bc250_full_wddm.cxx" />
     <ClCompile Include="src\hw\bc250_hw.c" />
     <ClCompile Include="src\firmware\bc250_firmware.c" />
+    <ClCompile Include="src\firmware\bc250_psp.c" />
     <ClCompile Include="src\smu\bc250_smu.c" />
     <ClCompile Include="src\memory\bc250_memory.c" />
     <ClCompile Include="src\memory\bc250_vidmm.c" />
@@ -97,6 +98,7 @@
     <ClInclude Include="src\kmd\bc250_full_wddm.hxx" />
     <ClInclude Include="src\hw\bc250_hw.h" />
     <ClInclude Include="src\firmware\bc250_firmware.h" />
+    <ClInclude Include="src\firmware\bc250_psp.h" />
     <ClInclude Include="src\smu\bc250_smu.h" />
     <ClInclude Include="src\memory\bc250_memory.h" />
     <ClInclude Include="src\memory\bc250_vidmm.h" />
